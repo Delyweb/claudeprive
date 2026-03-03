@@ -780,15 +780,15 @@
         <h3>Réglages</h3>
         <label>Modèle Claude</label>
         <select id="settingsModel">
-            <optgroup label="Europe (Recommandé)">
+            <optgroup label="Cross-Region (Recommandé pour Sonnet/Haiku)">
                 <option value="eu.anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Europe)</option>
-                <option value="eu.anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (Europe)</option>
+                <option value="us.anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (USA)</option>
                 <option value="eu.anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Europe)</option>
             </optgroup>
-            <optgroup label="États-Unis">
-                <option value="us.anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet (USA)</option>
-                <option value="us.anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (USA)</option>
-                <option value="us.anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (USA)</option>
+            <optgroup label="Modèles Standards (Opus & Fallback)">
+                <option value="anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (Standard - Votre Abonnement)</option>
+                <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Standard)</option>
+                <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Standard)</option>
             </optgroup>
         </select>
         <label>Région AWS</label>

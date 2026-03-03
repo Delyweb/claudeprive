@@ -41,12 +41,11 @@ PRICING = {
     # Cross-region Inference Profiles (US)
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
     "us.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
-    "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 
-    # Legacy / Direct regional IDs (fallback)
+    # Standard Regional IDs (Opus & others)
+    "anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
     "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
     "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
-    "anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 }
 
 def call_claude(messages, system_prompt, model=None):
