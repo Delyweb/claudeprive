@@ -1231,7 +1231,7 @@ async function newConversation() {
     await loadConversations();
     renderMessages([]);
     document.getElementById('chatTitle').textContent = data.title;
-    document.getElementById('welcomeScreen').style.display = 'none';
+    const _ws = document.getElementById('welcomeScreen'); if (_ws) _ws.style.display = 'none';
     document.getElementById('messageInput').focus();
 }
 
@@ -1239,7 +1239,7 @@ async function selectConversation(id) {
     currentConvId = id;
     const data = await api(`/api/conversations/${id}`);
     document.getElementById('chatTitle').textContent = data.title;
-    document.getElementById('welcomeScreen').style.display = 'none';
+    const _ws = document.getElementById('welcomeScreen'); if (_ws) _ws.style.display = 'none';
     renderMessages(data.messages || []);
     renderConversations();
 
@@ -1415,7 +1415,7 @@ async function sendMessage() {
         const promptId = document.getElementById('promptSelect').value || 'general';
         const data = await api('/api/conversations', 'POST', { prompt_id: promptId });
         currentConvId = data.id;
-        document.getElementById('welcomeScreen').style.display = 'none';
+        const _ws = document.getElementById('welcomeScreen'); if (_ws) _ws.style.display = 'none';
         await loadConversations();
     }
 
