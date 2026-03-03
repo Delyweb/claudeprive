@@ -769,4 +769,9 @@ def api_save_settings():
 # ═════════════════════════════════════════════
 
 if __name__ == "__main__":
+    print(app.url_map)
     app.run(debug=True, port=8009)
+else:
+    # Mode production (Gunicorn)
+    print("Chargement de l'application ClaudePrivé...")
+    print(app.url_map)
