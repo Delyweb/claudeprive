@@ -33,14 +33,14 @@ def get_bedrock_client():
 
 # Tarifs Bedrock par million de tokens (USD)
 PRICING = {
-    "anthropic.claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
-    "anthropic.claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
+    "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
+    "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
 }
 
 def call_claude(messages, system_prompt, model=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
-        model = load_settings().get("model", "anthropic.claude-sonnet-4-20250514")
+        model = load_settings().get("model", "anthropic.claude-3-5-sonnet-20240620-v1:0")
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -58,7 +58,7 @@ def call_claude(messages, system_prompt, model=None):
     output_tokens = usage.get("output_tokens", 0)
 
     # Calculer le coût
-    prices = PRICING.get(model, PRICING["anthropic.claude-sonnet-4-20250514"])
+    prices = PRICING.get(model, PRICING["anthropic.claude-3-5-sonnet-20240620-v1:0"])
     cost_usd = (input_tokens * prices["input"] + output_tokens * prices["output"]) / 1_000_000
 
     # Mettre à jour le compteur
@@ -203,7 +203,7 @@ def save_prompts(prompts):
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 DEFAULT_SETTINGS = {
-    "model": "anthropic.claude-sonnet-4-20250514",
+    "model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
     "region": "eu-west-3",
     "active_prompt": "general",
 }

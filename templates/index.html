@@ -780,8 +780,8 @@
         <h3>Réglages</h3>
         <label>Modèle Claude</label>
         <select id="settingsModel">
-            <option value="anthropic.claude-sonnet-4-20250514">Claude Sonnet (rapide, économique)</option>
-            <option value="anthropic.claude-haiku-4-5-20251001">Claude Haiku (ultra rapide, très économique)</option>
+            <option value="anthropic.claude-3-5-sonnet-20240620-v1:0">Claude 3.5 Sonnet (Intelligent, rapide)</option>
+            <option value="anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Ultra rapide, économique)</option>
         </select>
         <label>Région AWS</label>
         <select id="settingsRegion">
@@ -1304,15 +1304,15 @@ async function deleteProjectFile(savedAs) {
 // ═══════════════════════════════════════
 async function loadSettings() {
     settings = await api('/api/settings');
-    document.getElementById('settingsModel').value = settings.model || 'anthropic.claude-sonnet-4-20250514';
+    document.getElementById('settingsModel').value = settings.model || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
     document.getElementById('settingsRegion').value = settings.region || 'eu-west-3';
     updateModelBadge();
 }
 
 function updateModelBadge() {
     const m = settings.model || '';
-    let label = 'Sonnet';
-    if (m.includes('haiku')) label = 'Haiku';
+    let label = '3.5 Sonnet';
+    if (m.includes('haiku')) label = '3 Haiku';
     document.getElementById('chatModel').textContent = label;
 }
 
