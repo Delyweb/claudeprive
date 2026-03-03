@@ -704,6 +704,146 @@
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+        /* ═══ Project Page ═══ */
+        .project-page {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .project-page.visible { display: flex; }
+
+        .project-page-header {
+            padding: 14px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .project-page-back {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .project-page-back:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .project-page-title { flex: 1; }
+        .project-page-title h2 { font-size: 1.1rem; font-weight: 600; color: var(--accent); }
+        .project-page-title p { font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px; }
+        .project-page-actions { display: flex; gap: 8px; }
+
+        .project-page-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .pp-upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 0.88rem;
+        }
+        .pp-upload-zone:hover, .pp-upload-zone.drag-over {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .pp-upload-zone-icon { font-size: 1.8rem; margin-bottom: 6px; }
+
+        .pp-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .pp-file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            transition: background 0.15s;
+        }
+        .pp-file-item:hover { background: var(--bg-hover); }
+        .pp-file-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .pp-file-info { flex: 1; min-width: 0; }
+        .pp-file-name { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pp-file-meta { font-size: 0.74rem; color: var(--text-muted); margin-top: 2px; }
+        .pp-file-preview { font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+        .pp-file-delete {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .pp-file-delete:hover { color: var(--danger); border-color: var(--danger); background: rgba(231,76,111,0.1); }
+
+        /* ═══ Artefacts ═══ */
+        .artifact-block {
+            margin: 10px 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .artifact-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: var(--bg-tertiary);
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+        .artifact-lang { font-weight: 600; color: var(--accent); }
+        .artifact-save-btn {
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .artifact-save-btn:hover { background: var(--accent); color: var(--bg-primary); }
+        .artifact-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .artifact-body pre {
+            margin: 0;
+            padding: 14px;
+            background: var(--bg-primary);
+            overflow-x: auto;
+            font-size: 0.85rem;
+            border-radius: 0;
+            border: none;
+        }
+
         /* ═══ Mobile ═══ */
         .sidebar-toggle {
             display: none;
@@ -798,12 +938,10 @@
     <div class="project-detail" id="projectDetail">
         <div class="project-detail-name" id="projectDetailName"></div>
         <div class="project-detail-desc" id="projectDetailDesc"></div>
-        <div class="sidebar-section-title">Fichiers du projet</div>
-        <div class="project-files-list" id="projectFilesList"></div>
-        <button class="project-upload-btn" onclick="document.getElementById('projectFileInput').click()">+ Ajouter un fichier</button>
-        <input type="file" id="projectFileInput" style="display:none" onchange="handleProjectFileUpload(event)">
         <div class="project-detail-actions">
-            <button class="prompt-btn-sm" onclick="generateJournal(event)" title="Générer le journal quotidien maintenant">Journal</button>
+            <button class="prompt-btn-sm" onclick="openProjectPage()" style="color:var(--accent);">
+                Fichiers <span id="projectFilesCount" style="background:var(--bg-primary);padding:1px 6px;border-radius:10px;font-size:0.7rem;">0</span>
+            </button>
             <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
             <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
         </div>
@@ -860,6 +998,36 @@
         </div>
     </div>
 </main>
+
+<!-- ═══ Project Page ═══ -->
+<div id="projectPage" class="project-page">
+    <div class="project-page-header">
+        <button class="project-page-back" onclick="closeProjectPage()">← Chat</button>
+        <div class="project-page-title">
+            <h2 id="ppTitle">Projet</h2>
+            <p id="ppDesc"></p>
+        </div>
+        <div class="project-page-actions">
+            <button class="prompt-btn-sm" id="ppJournalBtn" onclick="generateJournalPage(event)">Journal du jour</button>
+            <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
+            <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
+        </div>
+    </div>
+    <div class="project-page-body">
+        <div class="pp-upload-zone" id="ppUploadZone"
+             onclick="document.getElementById('ppFileInput').click()"
+             ondragover="ppHandleDragOver(event)"
+             ondragleave="ppHandleDragLeave(event)"
+             ondrop="ppHandleDrop(event)">
+            <input type="file" id="ppFileInput" style="display:none" onchange="handleProjectFileUpload(event)">
+            <div class="pp-upload-zone-icon">📁</div>
+            <strong>Cliquer pour ajouter un fichier</strong>
+            <p>ou glisser-déposer ici · PDF, DOCX, TXT, MD, CSV, JSON, PY, JS, MP4...</p>
+        </div>
+        <div class="pp-section-title" id="ppFilesTitle">Fichiers (0)</div>
+        <div id="ppFilesList"></div>
+    </div>
+</div>
 
 <!-- ═══ Settings Modal ═══ -->
 <div class="modal-overlay" id="settingsModal">
@@ -1450,15 +1618,14 @@ async function selectProject(id) {
         const proj = await api(`/api/projects/${id}`);
         document.getElementById('projectDetail').classList.add('visible');
         document.getElementById('projectDetailName').textContent = proj.name;
-        document.getElementById('projectDetailDesc').textContent = proj.description || 'Aucune description';
-        renderProjectFiles(proj.files || []);
+        document.getElementById('projectDetailDesc').textContent = proj.description || '';
+        document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
     } else {
         document.getElementById('projectDetail').classList.remove('visible');
     }
 
     await loadConversations();
 
-    // Reset chat area
     document.getElementById('messagesContainer').innerHTML = `
         <div class="welcome" id="welcomeScreen">
             <div class="welcome-icon">CP</div>
@@ -1468,18 +1635,85 @@ async function selectProject(id) {
     document.getElementById('chatTitle').textContent = 'ClaudePrivé';
 }
 
-function renderProjectFiles(files) {
-    const list = document.getElementById('projectFilesList');
+// ── Project Page ──
+function openProjectPage() {
+    if (!currentProjectId) return;
+    const proj = projects.find(p => p.id === currentProjectId);
+    if (!proj) return;
+    document.getElementById('ppTitle').textContent = proj.name;
+    document.getElementById('ppDesc').textContent = proj.description || '';
+    document.querySelector('.chat-area').style.display = 'none';
+    document.getElementById('projectPage').classList.add('visible');
+    api(`/api/projects/${currentProjectId}`).then(p => renderProjectPageFiles(p.files || []));
+}
+
+function closeProjectPage() {
+    document.getElementById('projectPage').classList.remove('visible');
+    document.querySelector('.chat-area').style.display = '';
+}
+
+function renderProjectPageFiles(files) {
+    document.getElementById('ppFilesTitle').textContent = `Fichiers (${files.length})`;
+    document.getElementById('projectFilesCount').textContent = files.length;
+    const list = document.getElementById('ppFilesList');
     if (files.length === 0) {
-        list.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);padding:4px 0;">Aucun fichier</div>';
+        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Aucun fichier dans ce projet</div>';
         return;
     }
-    list.innerHTML = files.map(f => `
-        <div class="project-file-item">
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.filename)}</span>
-            <button class="project-file-remove" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
-        </div>
-    `).join('');
+    list.innerHTML = files.map(f => {
+        const ext = (f.filename.split('.').pop() || '').toLowerCase();
+        const icon = ext === 'pdf' ? '📕' : ext === 'docx' ? '📝' : ext === 'md' ? '📓'
+            : ['mp4','mov','avi','mkv','webm'].includes(ext) ? '🎬' : '📄';
+        const size = f.size > 1048576 ? (f.size/1048576).toFixed(1)+' Mo' : Math.round(f.size/1024)+' Ko';
+        const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('fr-FR') : '';
+        const preview = f.text_preview ? escapeHtml(f.text_preview) : '';
+        return `
+            <div class="pp-file-item">
+                <span class="pp-file-icon">${icon}</span>
+                <div class="pp-file-info">
+                    <div class="pp-file-name">${escapeHtml(f.filename)}</div>
+                    <div class="pp-file-meta">${size} · ${date}</div>
+                    ${preview ? `<div class="pp-file-preview">${preview}</div>` : ''}
+                </div>
+                <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
+            </div>`;
+    }).join('');
+}
+
+function ppHandleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function ppHandleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function ppHandleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        const dt = new DataTransfer();
+        dt.items.add(files[0]);
+        const input = document.getElementById('ppFileInput');
+        input.files = dt.files;
+        handleProjectFileUpload({ target: input });
+    }
+}
+
+async function generateJournalPage(e) {
+    if (!currentProjectId) return;
+    const btn = e.target;
+    btn.textContent = '⏳';
+    btn.disabled = true;
+    try {
+        const res = await api(`/api/projects/${currentProjectId}/journal`, 'POST');
+        if (res.filename) {
+            api(`/api/projects/${currentProjectId}`).then(p => renderProjectPageFiles(p.files || []));
+            alert(`Journal généré : ${res.filename}`);
+        } else {
+            alert(res.message || "Aucune activité à synthétiser pour aujourd'hui.");
+        }
+    } catch (err) {
+        alert('Erreur : ' + err.message);
+    } finally {
+        btn.textContent = 'Journal du jour';
+        btn.disabled = false;
+    }
 }
 
 function openProjectModal(isNew = false) {
@@ -1526,6 +1760,7 @@ async function deleteCurrentProject() {
     if (!confirm('Supprimer ce projet ? Les conversations seront conservées hors projet.')) return;
     await api(`/api/projects/${currentProjectId}`, 'DELETE');
     currentProjectId = null;
+    closeProjectPage();
     await loadProjects();
     document.getElementById('projectDetail').classList.remove('visible');
     await loadConversations();
@@ -1542,8 +1777,11 @@ async function handleProjectFileUpload(e) {
         const res = await fetch(`/api/projects/${currentProjectId}/upload`, { method: 'POST', body: formData });
         const data = await res.json();
         if (data.error) { alert(data.error); return; }
-        // Refresh project detail
-        selectProject(currentProjectId);
+        const proj = await api(`/api/projects/${currentProjectId}`);
+        document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
+        if (document.getElementById('projectPage').classList.contains('visible')) {
+            renderProjectPageFiles(proj.files || []);
+        }
     } catch (err) {
         alert('Erreur upload : ' + err.message);
     }
@@ -1553,33 +1791,13 @@ async function handleProjectFileUpload(e) {
 async function deleteProjectFile(savedAs) {
     if (!currentProjectId) return;
     await api(`/api/projects/${currentProjectId}/files/${savedAs}`, 'DELETE');
-    selectProject(currentProjectId);
-}
-
-async function generateJournal(e) {
-    if (!currentProjectId) return;
-    const btn = e.target;
-    const originalText = btn.textContent;
-    
-    btn.textContent = "⏳";
-    btn.disabled = true;
-    
-    try {
-        const res = await api(`/api/projects/${currentProjectId}/journal`, 'POST');
-        if (res.filename) {
-            // Recharger le projet pour voir le nouveau fichier
-            await selectProject(currentProjectId);
-            alert(`Journal généré avec succès :\n${res.filename}`);
-        } else {
-            alert(res.message || "Aucune activité à synthétiser pour aujourd'hui.");
-        }
-    } catch (err) {
-        alert("Erreur lors de la génération du journal : " + err.message);
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
+    const proj = await api(`/api/projects/${currentProjectId}`);
+    document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
+    if (document.getElementById('projectPage').classList.contains('visible')) {
+        renderProjectPageFiles(proj.files || []);
     }
 }
+
 
 // ═══════════════════════════════════════
 // Settings
@@ -1649,21 +1867,70 @@ function escapeHtml(str) {
 
 function formatMessage(text) {
     if (!text) return '';
-    // Basic markdown: bold, italic, code blocks, inline code
-    let html = escapeHtml(text);
 
-    // Code blocks
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Bold
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    // Italic
-    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    // Line breaks
-    html = html.replace(/\n/g, '<br>');
+    // Artefacts : blocs de code avec langage → artifact-block avec bouton Enregistrer
+    let html = text.replace(/```([\w.+-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const safeLang = escapeHtml(lang || 'texte');
+        const safeCode = escapeHtml(code.trimEnd());
+        // Déterminer une extension proposée
+        const extMap = { python:'py', javascript:'js', js:'js', html:'html', css:'css',
+            bash:'sh', sh:'sh', sql:'sql', json:'json', yaml:'yml', yml:'yml', markdown:'md', md:'md' };
+        const ext = extMap[lang.toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
+        const saveBtn = currentProjectId
+            ? `<button class="artifact-save-btn" onclick="saveArtifact(this, '${ext}')">Enregistrer dans le projet</button>`
+            : '';
+        return `<div class="artifact-block">
+            <div class="artifact-header">
+                <span class="artifact-lang">${safeLang}</span>
+                ${saveBtn}
+            </div>
+            <div class="artifact-body"><pre><code>${safeCode}</code></pre></div>
+        </div>`;
+    });
+
+    // Escape remaining text (outside code blocks)
+    // Re-parse: split by artifact-block divs (already HTML), escape rest
+    // Simpler: process non-code parts
+    const parts = html.split(/(<div class="artifact-block">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>)/);
+    html = parts.map((part, i) => {
+        if (i % 2 === 1) return part; // artifact HTML — leave as-is
+        // Escape then apply inline markdown
+        let p = escapeHtml(part);
+        p = p.replace(/`([^`]+)`/g, '<code>$1</code>');
+        p = p.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+        p = p.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+        p = p.replace(/\n/g, '<br>');
+        return p;
+    }).join('');
 
     return html;
+}
+
+async function saveArtifact(btn, ext) {
+    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
+    const block = btn.closest('.artifact-block');
+    const code = block.querySelector('code').textContent;
+
+    // Proposer un nom de fichier
+    const filename = prompt('Nom du fichier à enregistrer :', `artefact_${Date.now()}.${ext}`);
+    if (!filename) return;
+
+    btn.disabled = true;
+    btn.textContent = '⏳';
+
+    try {
+        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content: code });
+        if (res.error) { alert(res.error); return; }
+        btn.textContent = '✓ Enregistré';
+        btn.style.background = 'var(--accent)';
+        btn.style.color = 'var(--bg-primary)';
+        // Refresh badge
+        document.getElementById('projectFilesCount').textContent = res.file_count;
+    } catch (err) {
+        alert('Erreur : ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer dans le projet';
+    }
 }
 </script>
 
