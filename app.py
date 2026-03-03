@@ -322,13 +322,13 @@ def call_pegasus_video(filepath):
             "prompt": prompt,
             "videoS3Uri": s3_uri
         })
-        
-        bedrock = get_bedrock_client("us.anthropic.claude") # On utilise le client US par défaut pour Pegasus qui est souvent US
+
+        bedrock = get_bedrock_client()  # Région par défaut (eu-west-3) où Pegasus est souscrit
         response = bedrock.invoke_model(modelId=model_id, body=body)
-        
+
         result = json.loads(response["body"].read())
-        # Le format de réponse dépend de Pegasus, on extrait le texte générique
-        return result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}")
+        return result.get("output", result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}"))
+
 
     except Exception as e:
         return f"[Erreur Analyse Vidéo : {str(e)}]"
