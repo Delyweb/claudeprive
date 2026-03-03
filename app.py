@@ -751,6 +751,127 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
+# ── Journal Quotidien ──
+
+def get_today_conversations_text(project_id):
+    """Récupère et formate les conversations du jour pour un projet."""
+    today = date.today().isoformat()
+    convs = load_conversations()
+    formatted_parts = []
+
+    for conv_id, conv in convs.items():
+        if conv.get("project_id") != project_id:
+            continue
+        # Conversations mises à jour aujourd'hui
+        if not conv.get("updated_at", "").startswith(today):
+            continue
+        messages = conv.get("messages", [])
+        if not messages:
+            continue
+
+        part = f"### {conv.get('title', 'Conversation')}\n"
+        for msg in messages[-20:]:  # 20 derniers messages max par conversation
+            role = "Utilisateur" if msg["role"] == "user" else "Claude"
+            content = msg["content"]
+            if len(content) > 800:
+                content = content[:800] + "...[tronqué]"
+            part += f"\n**{role}** : {content}\n"
+        formatted_parts.append(part)
+
+    return "\n---\n".join(formatted_parts)
+
+
+@app.route("/api/journal/generate", methods=["POST"])
+def api_generate_journals():
+    """Génère les journaux quotidiens pour tous les projets actifs.
+    Appelé par le cron système : curl -X POST http://localhost:8009/api/journal/generate
+    """
+    today = date.today().isoformat()
+    projects = load_projects()
+    results = []
+
+    for project_id, proj in projects.items():
+        project_name = proj.get("name", "Projet")
+        journal_filename = f"Journal_{project_name.replace(' ', '_')}_{today}.md"
+
+        # Skip si journal déjà généré aujourd'hui
+        if any(f.get("filename") == journal_filename for f in proj.get("files", [])):
+            results.append({"project": project_name, "status": "skipped", "reason": "déjà existant"})
+            continue
+
+        # Récupérer les conversations du jour
+        conversations_text = get_today_conversations_text(project_id)
+        if not conversations_text.strip():
+            results.append({"project": project_name, "status": "skipped", "reason": "aucune activité"})
+            continue
+
+        # Tronquer si trop long (max ~15 000 chars)
+        if len(conversations_text) > 15000:
+            conversations_text = conversations_text[:15000] + "\n...[Conversations tronquées]"
+
+        prompt = f"""Tu es l'assistant de synthèse de ClaudePrivé.
+
+Voici les conversations du jour pour le projet "{project_name}".
+
+Génère un journal quotidien concis au format markdown :
+
+# Journal {project_name} - {today}
+
+## Actions réalisées
+Liste des actions concrètes effectuées aujourd'hui. Utilise ✅ pour chaque action.
+
+## Informations clés
+Nouvelles informations apprises, réponses reçues, clarifications obtenues.
+
+## Prochaines étapes
+Actions identifiées à faire ou en attente. Utilise ⏳ pour chaque item.
+
+## Points d'attention
+Risques, blocages, sujets sensibles.
+
+---
+
+Règles : sois factuel et concis. Si une section est vide, ne pas l'inclure. Maximum 30 lignes.
+
+Conversations du jour :
+{conversations_text}"""
+
+        try:
+            result, usage = call_claude(
+                [{"role": "user", "content": prompt}],
+                "Tu es un assistant de synthèse. Réponds uniquement en markdown.",
+            )
+            journal_content = "".join(
+                block["text"] for block in result.get("content", []) if block.get("type") == "text"
+            )
+
+            # Sauvegarder comme fichier du projet
+            safe_name = f"{uuid.uuid4().hex[:8]}_{journal_filename}"
+            filepath = UPLOADS_DIR / safe_name
+            filepath.write_text(journal_content, encoding="utf-8")
+            # Companion .txt pour le RAG
+            Path(str(filepath) + ".txt").write_text(journal_content, encoding="utf-8")
+
+            file_info = {
+                "filename": journal_filename,
+                "saved_as": safe_name,
+                "size": len(journal_content.encode()),
+                "uploaded_at": datetime.now().isoformat(),
+                "text_preview": journal_content[:200] + "..." if len(journal_content) > 200 else journal_content,
+            }
+            proj = get_project(project_id)
+            proj["files"].append(file_info)
+            proj["updated_at"] = datetime.now().isoformat()
+            save_project(project_id, proj)
+
+            results.append({"project": project_name, "status": "generated", "filename": journal_filename, "usage": usage})
+
+        except Exception as e:
+            results.append({"project": project_name, "status": "error", "reason": str(e)})
+
+    return jsonify({"date": today, "results": results})
+
+
 # ── Projets ──
 
 @app.route("/api/projects", methods=["GET"])
