@@ -33,14 +33,27 @@ def get_bedrock_client():
 
 # Tarifs Bedrock par million de tokens (USD)
 PRICING = {
+    # Cross-region Inference Profiles (EU)
+    "eu.anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
+    "eu.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    "eu.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
+    
+    # Cross-region Inference Profiles (US)
+    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
+    "us.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
+
+    # Legacy / Direct regional IDs (fallback)
     "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
     "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    "anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 }
 
 def call_claude(messages, system_prompt, model=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
-        model = load_settings().get("model", "anthropic.claude-3-5-sonnet-20240620-v1:0")
+        # Par défaut : Cross-region EU Sonnet 3.5
+        model = load_settings().get("model", "eu.anthropic.claude-3-5-sonnet-20240620-v1:0")
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -58,7 +71,11 @@ def call_claude(messages, system_prompt, model=None):
     output_tokens = usage.get("output_tokens", 0)
 
     # Calculer le coût
-    prices = PRICING.get(model, PRICING["anthropic.claude-3-5-sonnet-20240620-v1:0"])
+    prices = PRICING.get(model, PRICING.get("eu.anthropic.claude-3-5-sonnet-20240620-v1:0"))
+    if not prices:
+        # Fallback prix moyen si modèle inconnu
+        prices = {"input": 3.0, "output": 15.0}
+        
     cost_usd = (input_tokens * prices["input"] + output_tokens * prices["output"]) / 1_000_000
 
     # Mettre à jour le compteur
@@ -203,7 +220,7 @@ def save_prompts(prompts):
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 DEFAULT_SETTINGS = {
-    "model": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "model": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
     "region": "eu-west-3",
     "active_prompt": "general",
 }
