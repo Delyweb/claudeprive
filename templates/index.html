@@ -664,7 +664,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">CP</div>
-        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.0</span></h1>
+        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.1 (2026)</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
@@ -778,14 +778,17 @@
 <div class="modal-overlay" id="settingsModal">
     <div class="modal">
         <h3>Réglages</h3>
-        <label>Modèle Claude (Europe)</label>
+        <label>Modèle Claude (Europe - 2026)</label>
         <select id="settingsModel">
-            <optgroup label="Claude 4.6 (Next Gen)">
-                <option value="eu.anthropic.claude-opus-4-6-v1:0">Claude Opus 4.6 (Europe - Le plus puissant)</option>
+            <optgroup label="Claude Opus (Puissance Max)">
+                <option value="eu.anthropic.claude-opus-4-6-v1:0">Claude Opus 4.6 (Europe)</option>
+                <option value="eu.anthropic.claude-opus-4-5-20251101-v1:0">Claude Opus 4.5 (Europe - Stable)</option>
             </optgroup>
-            <optgroup label="Claude 4.5">
-                <option value="eu.anthropic.claude-sonnet-4-5-20250929-v1:0">Claude Sonnet 4.5 (Europe - Équilibré)</option>
-                <option value="eu.anthropic.claude-haiku-4-5-20251001-v1:0">Claude Haiku 4.5 (Europe - Rapide)</option>
+            <optgroup label="Claude Sonnet (Équilibré)">
+                <option value="eu.anthropic.claude-sonnet-4-5-20250929-v1:0">Claude Sonnet 4.5 (Europe)</option>
+            </optgroup>
+            <optgroup label="Claude Haiku (Rapide)">
+                <option value="eu.anthropic.claude-haiku-4-5-20251001-v1:0">Claude Haiku 4.5 (Europe)</option>
             </optgroup>
         </select>
         <label>Région AWS</label>

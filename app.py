@@ -51,9 +51,13 @@ def get_bedrock_client(model_id=None):
 PRICING = {
     # ─── NEXT GEN (2026) ───
     
-    # Claude Opus 4.6 (Le plus puissant)
-    "eu.anthropic.claude-opus-4-6-v1:0": {"input": 15.0, "output": 75.0},
-    "anthropic.claude-opus-4-6-v1:0":    {"input": 15.0, "output": 75.0},
+    # Claude Opus 4.6 (Le plus puissant) - ID corrigé sans :0 final
+    "eu.anthropic.claude-opus-4-6-v1": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-6-v1":    {"input": 15.0, "output": 75.0},
+
+    # Claude Opus 4.5 (Fiable)
+    "eu.anthropic.claude-opus-4-5-20251101-v1:0": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-5-20251101-v1:0":    {"input": 15.0, "output": 75.0},
 
     # Claude Sonnet 4.5
     "eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.0, "output": 15.0},
