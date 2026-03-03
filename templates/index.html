@@ -664,7 +664,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">CP</div>
-        <h1>ClaudePrivé</h1>
+        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v1.4</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
@@ -784,10 +784,12 @@
                 <option value="us.anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet v2 (USA - Top Performance)</option>
                 <option value="us.anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (USA - Votre Abonnement)</option>
             </optgroup>
-            <optgroup label="Ultra Rapide">
+            <optgroup label="Europe (Souveraineté des données)">
+                <option value="eu.anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Europe - Rapide & RGPD)</option>
+            </optgroup>
+            <optgroup label="Ultra Rapide (US)">
                 <option value="us.anthropic.claude-3-5-haiku-20241022-v1:0">Claude 3.5 Haiku (USA - Rapide & Intelligent)</option>
             </optgroup>
-            <!-- Note: Les modèles Europe (v1) semblent être marqués Legacy/Bloqués sur ce compte -->
         </select>
         <label>Région AWS</label>
         <select id="settingsRegion">
