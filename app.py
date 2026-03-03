@@ -54,29 +54,21 @@ def get_bedrock_client(model_id=None):
 
 # Tarifs Bedrock par million de tokens (USD)
 PRICING = {
-    # Cross-region Inference Profiles (EU)
-    "eu.anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
-    "eu.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
-    
-    # Cross-region Inference Profiles (US)
+    # 1. Claude 3.5 Sonnet v2 (US Only - Intelligent & Rapide)
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
-    "us.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    
+    # 2. Claude 3 Opus (US Only - Très intelligent)
     "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 
-    # Standard Regional IDs (Opus & others)
-    "anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
-    # Sonnet 3.5 v2 (New Standard)
-    "anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
-    # Sonnet 3.5 v1 (Legacy)
-    "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
-    "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    # 3. Claude 3 Haiku (EU - Rapide & RGPD)
+    "eu.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
 }
 
 def call_claude(messages, system_prompt, model=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
-        # Par défaut : Cross-region EU Sonnet 3.5
-        model = load_settings().get("model", "eu.anthropic.claude-3-5-sonnet-20240620-v1:0")
+        # Par défaut : Sonnet 3.5 v2 (US) car c'est le seul fiable "intelligent"
+        model = load_settings().get("model", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -95,9 +87,9 @@ def call_claude(messages, system_prompt, model=None):
     output_tokens = usage.get("output_tokens", 0)
 
     # Calculer le coût
-    prices = PRICING.get(model, PRICING.get("eu.anthropic.claude-3-5-sonnet-20240620-v1:0"))
+    prices = PRICING.get(model)
     if not prices:
-        # Fallback prix moyen si modèle inconnu
+        # Fallback prix moyen (Sonnet)
         prices = {"input": 3.0, "output": 15.0}
         
     cost_usd = (input_tokens * prices["input"] + output_tokens * prices["output"]) / 1_000_000
@@ -244,7 +236,7 @@ def save_prompts(prompts):
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 DEFAULT_SETTINGS = {
-    "model": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "model": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
     "region": "eu-west-3",
     "active_prompt": "general",
 }
