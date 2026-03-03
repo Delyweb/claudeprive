@@ -12,6 +12,8 @@ from pathlib import Path
 
 import boto3
 from flask import Flask, render_template, request, jsonify
+from apscheduler.schedulers.background import BackgroundScheduler
+import journal
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 Mo max upload pour vidéo
@@ -703,6 +705,26 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
+@app.route("/api/projects/<project_id>/journal", methods=["POST"])
+def api_generate_journal_manual(project_id):
+    """Génère manuellement le journal du jour pour un projet."""
+    context = {
+        'get_project': get_project,
+        'load_conversations': load_conversations,
+        'call_claude': call_claude,
+        'save_project': save_project,
+        'UPLOADS_DIR': UPLOADS_DIR,
+        'load_projects': load_projects
+    }
+    
+    result = journal.generate_journal(project_id, context)
+    
+    if result:
+        return jsonify(result)
+    else:
+        return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
+
+
 # ── Réglages ──
 
 @app.route("/api/settings", methods=["GET"])
@@ -726,5 +748,26 @@ def api_save_settings():
 
 # ═════════════════════════════════════════════
 
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+    
+    context = {
+        'get_project': get_project,
+        'load_conversations': load_conversations,
+        'call_claude': call_claude,
+        'save_project': save_project,
+        'UPLOADS_DIR': UPLOADS_DIR,
+        'load_projects': load_projects
+    }
+    
+    # Job quotidien à 23h00
+    scheduler.add_job(func=journal.run_daily_journals, trigger="cron", hour=23, minute=0, args=[context])
+    scheduler.start()
+
 if __name__ == "__main__":
+    # Démarrer le scheduler (attention au double démarrage en debug mode, 
+    # use_reloader=False peut être nécessaire pour éviter ça en dev)
+    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        start_scheduler()
+        
     app.run(debug=True, port=8009)

@@ -803,6 +803,7 @@
         <button class="project-upload-btn" onclick="document.getElementById('projectFileInput').click()">+ Ajouter un fichier</button>
         <input type="file" id="projectFileInput" style="display:none" onchange="handleProjectFileUpload(event)">
         <div class="project-detail-actions">
+            <button class="prompt-btn-sm" onclick="generateJournal(event)" title="Générer le journal quotidien maintenant">Journal</button>
             <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
             <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
         </div>
@@ -1552,6 +1553,31 @@ async function deleteProjectFile(savedAs) {
     if (!currentProjectId) return;
     await api(`/api/projects/${currentProjectId}/files/${savedAs}`, 'DELETE');
     selectProject(currentProjectId);
+}
+
+async function generateJournal(e) {
+    if (!currentProjectId) return;
+    const btn = e.target;
+    const originalText = btn.textContent;
+    
+    btn.textContent = "⏳";
+    btn.disabled = true;
+    
+    try {
+        const res = await api(`/api/projects/${currentProjectId}/journal`, 'POST');
+        if (res.filename) {
+            // Recharger le projet pour voir le nouveau fichier
+            await selectProject(currentProjectId);
+            alert(`Journal généré avec succès :\n${res.filename}`);
+        } else {
+            alert(res.message || "Aucune activité à synthétiser pour aujourd'hui.");
+        }
+    } catch (err) {
+        alert("Erreur lors de la génération du journal : " + err.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
 }
 
 // ═══════════════════════════════════════
