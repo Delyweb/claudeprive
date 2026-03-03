@@ -4,27 +4,28 @@
 -   **Langage** : Python 3.12 (image Docker `python:3.12-slim`).
 -   **Framework Web** : Flask 3.x.
 -   **Serveur d'Application** : Gunicorn.
--   **Frontend** : HTML5, CSS3 (Flexbox/Grid), JavaScript (ES6, Fetch API). Aucune dépendance frontend (pas de React/Vue/Angular).
+-   **Frontend** : HTML5, CSS3 (Flexbox/Grid), JavaScript (ES6, Fetch API).
 -   **IA / LLM** : AWS Bedrock Runtime (via `boto3`).
--   **Manipulation de Fichiers** : `PyPDF2` (PDF), `python-docx` (Word).
+
+## Modèles Supportés (Mars 2026)
+L'application utilise les versions les plus récentes et les profils Cross-Region pour éviter les erreurs "Legacy" ou "Throughput".
+
+1.  **Claude 3.5 Sonnet v2** (`us.anthropic.claude-3-5-sonnet-20241022-v2:0`)
+    *   Le modèle par défaut. Rapide et intelligent.
+    *   Hébergé aux USA (seule dispo actuelle).
+2.  **Claude 3 Opus** (`us.anthropic.claude-3-opus-20240229-v1:0`)
+    *   Le modèle le plus puissant ("Opus 4.6" Marketplace).
+    *   Hébergé aux USA (seule dispo actuelle).
+3.  **Claude 3.5 Haiku** (`us.anthropic.claude-3-5-haiku-20241022-v1:0`)
+    *   Modèle ultra-rapide nouvelle génération.
+    *   Hébergé aux USA.
+
+*Note : Les modèles hébergés en Europe (v1) ont été retirés car marqués "Legacy" ou instables par AWS sur ce compte.*
 
 ## Configuration Requise
 -   **Docker** : Pour conteneuriser et exécuter l'application.
--   **Compte AWS** : Avec accès activé aux modèles Claude (Sonnet 3.5, Haiku 3) dans la région cible (ex: `eu-west-3`, `us-east-1`).
--   **Crédentials AWS** : Configurés via variables d'environnement (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`) ou profil `~/.aws/credentials` monté dans le conteneur.
+-   **Compte AWS** : Avec accès activé aux modèles Anthropic (US).
+-   **Crédentials AWS** : `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
 
 ## Dépendances (requirements.txt)
--   `flask` : Framework web.
--   `gunicorn` : Serveur WSGI de production.
--   `boto3` : SDK AWS pour Python.
--   `PyPDF2` : Extraction de texte PDF.
--   `python-docx` : Extraction de texte Word.
-
-## Environnement de Développement
--   **Local** : `python app.py` (Flask debug server).
--   **Docker** : `docker build -t claudeprive . && docker run -p 8009:8009 -v $(pwd)/data:/app/data -e AWS_PROFILE=default -v ~/.aws:/root/.aws claudeprive`.
-
-## Contraintes Techniques
--   **Stockage** : Les fichiers uploadés et les JSON sont stockés dans `/app/data`. Ce dossier doit être persisté (volume Docker) pour ne pas perdre l'historique au redémarrage.
--   **Taille Fichier** : Limite d'upload fixée à 20 Mo (`MAX_CONTENT_LENGTH`).
--   **Concurrence** : Gérée par Gunicorn (2 workers, 8 threads par défaut dans `start.sh`).
+-   `flask`, `gunicorn`, `boto3`, `PyPDF2`, `python-docx`.

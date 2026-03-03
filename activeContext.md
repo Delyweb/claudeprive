@@ -1,16 +1,15 @@
 # Active Context: ClaudePrivé
 
 ## Focus Actuel
-Le projet est en phase de maintenance et d'utilisation. La tâche actuelle consistait à corriger les identifiants (IDs) des modèles Claude dans le code pour qu'ils correspondent aux versions disponibles sur AWS Bedrock, et à préparer la documentation (Memory Bank).
+Le projet est stabilisé. Une mise à jour majeure a été effectuée pour aligner les identifiants de modèles avec les dernières contraintes d'AWS Bedrock (Mars 2026).
 
 ## Changements Récents
--   **Correctif Modèles (03/03/2026)** :
-    -   Mise à jour de `app.py` pour utiliser les bons IDs Bedrock : `anthropic.claude-3-5-sonnet-20240620-v1:0` et `anthropic.claude-3-haiku-20240307-v1:0`.
-    -   Mise à jour de `templates/index.html` pour refléter ces changements dans l'interface de réglages.
-    -   Commit et Push vers le dépôt Git distant.
--   **Documentation** : Création de la Memory Bank (`projectbrief.md`, `productContext.md`, etc.).
+-   **Correctif "Legacy/EOL"** : Suppression de tous les anciens modèles (Claude 3 Sonnet v1, Haiku 3 v1) qui provoquaient des erreurs `ResourceNotFound` ou `Legacy`.
+-   **Adoption de Claude 3.5 Sonnet v2** : Le nouveau standard pour la performance et l'intelligence (ID: `us.anthropic.claude-3-5-sonnet-20241022-v2:0`).
+-   **Adoption de Claude 3.5 Haiku** : Pour la rapidité (ID: `us.anthropic.claude-3-5-haiku-20241022-v1:0`).
+-   **Support Opus via Cross-Region** : Configuration spécifique pour permettre l'utilisation de Claude 3 Opus (via `us-east-1`).
+-   **Nettoyage Interface** : Le menu de sélection ne propose plus que des options testées et fonctionnelles.
 
 ## Prochaines Étapes
--   Redéployer l'application sur le serveur cible (pull + restart docker).
--   Vérifier que les coûts sont bien calculés avec les nouveaux tarifs (définis dans `app.py`).
--   Surveiller les logs pour s'assurer que les appels Bedrock ne génèrent plus d'erreur `ValidationException`.
+-   Surveiller la disponibilité des modèles v2 en Europe (pour l'instant US only).
+-   Redéployer l'application sur le serveur cible.
