@@ -323,15 +323,14 @@
         /* Context Menu */
         .context-menu {
             display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
+            position: fixed; /* Mieux pour le positionnement par rapport à la fenêtre */
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
             border-radius: 6px;
             box-shadow: var(--shadow);
-            z-index: 1000;
-            min-width: 140px;
+            z-index: 2000;
+            min-width: 160px;
+            width: max-content;
             padding: 4px 0;
         }
         .context-menu.visible { display: block; }
@@ -1101,10 +1100,20 @@ function showContextMenu(e, id) {
     contextConvId = id;
     const menu = document.getElementById('contextMenu');
     
-    // Position menu relative to the button
+    // Position menu relative to the button (Fixed positioning)
     const rect = e.target.getBoundingClientRect();
-    menu.style.top = (rect.bottom + window.scrollY) + 'px';
-    menu.style.left = (rect.left + window.scrollX - 100) + 'px'; // Shift left a bit
+    menu.style.top = (rect.bottom + 5) + 'px'; // Un peu en dessous
+    
+    // Si le menu dépasse à droite, on l'aligne à droite du bouton
+    // Sinon on l'aligne à gauche
+    // Pour simplifier : on aligne à gauche du bouton, décalé pour ne pas sortir de l'écran
+    // Ou mieux : on le centre sur la souris ? Non, sur le bouton.
+    
+    // Alignement "intelligent" simple
+    let left = rect.left - 120; // Décale vers la gauche par défaut
+    if (left < 10) left = 10; // Bord gauche
+    
+    menu.style.left = left + 'px';
     
     menu.classList.add('visible');
 }

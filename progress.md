@@ -1,7 +1,7 @@
 # Progress: ClaudePrivé
 
 ## Statut Global
-Le projet est terminé, fonctionnel et optimisé (v2.2). Toutes les fonctionnalités principales et ergonomiques sont implémentées.
+Le projet est terminé, fonctionnel et optimisé (v2.3). Toutes les fonctionnalités principales, ergonomiques et avancées (Vidéo, Recherche) sont implémentées.
 
 ## Fonctionnalités (Roadmap)
 
@@ -11,21 +11,26 @@ Le projet est terminé, fonctionnel et optimisé (v2.2). Toutes les fonctionnali
     - [x] Persistance JSON
     - [x] Gestion intelligente des régions (US/EU)
     - [x] Route de déplacement de conversation (PUT /project)
+    - [x] **Route de recherche** (GET /search)
+    - [x] **Intégration S3 / Pegasus** (Vidéo)
 - [x] **Intégration AWS Bedrock**
     - [x] Support Modèles 2026 (Opus 4.6, Sonnet 4.5, Haiku 4.5)
     - [x] Profils Cross-Region Europe/US
     - [x] Gestion des coûts
+    - [x] **Twelve Labs Pegasus** (Video-to-Text)
 - [x] **Frontend SPA**
     - [x] Chat interface moderne
     - [x] Historique des conversations
     - [x] Indicateur de frappe
-    - [x] **Drag & Drop** pour classer les conversations
-    - [x] **Menu Contextuel** (Renommer/Déplacer/Supprimer)
+    - [x] Drag & Drop pour classer les conversations
+    - [x] Menu Contextuel (Renommer/Déplacer/Supprimer)
+    - [x] **Barre de Recherche** (Historique global)
 - [x] **Confidentialité**
     - [x] Prompt système "Europe" par défaut
     - [x] Limitation aux régions EU dans l'interface
 - [x] **Gestion de Fichiers**
     - [x] Upload PDF, DOCX, TXT
+    - [x] Upload Vidéo (MP4, MOV...)
     - [x] Extraction de texte
     - [x] Association aux Projets
 - [x] **Fonctionnalités Avancées**
@@ -35,6 +40,8 @@ Le projet est terminé, fonctionnel et optimisé (v2.2). Toutes les fonctionnali
     - [x] Dockerfile optimisé
     - [x] docker-compose.yml
     - [x] Documentation Memory Bank complète
+    - [x] **Guide S3**
 
 ## Problèmes Connus
 -   Aucun bug majeur connu.
+-   L'analyse vidéo complète nécessite une configuration S3 manuelle (voir GUIDE_S3.md).

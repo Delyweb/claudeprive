@@ -1,13 +1,14 @@
 # Active Context: ClaudePrivé
 
 ## Focus Actuel
-Le projet est terminé, fonctionnel et optimisé. L'interface a été améliorée avec des fonctionnalités ergonomiques (Drag & Drop, Menu contextuel) et la sécurité renforcée (Prompt système, Régions EU uniquement).
+Le projet est en phase d'extension fonctionnelle. Des capacités avancées de **Recherche** (Mémoire Globale) et d'**Analyse Vidéo** (Pegasus) ont été ajoutées.
 
 ## Changements Récents
--   **Ergonomie** : Ajout du **Drag & Drop** pour déplacer les conversations dans les projets, et d'un **menu contextuel (⋮)** sur chaque conversation.
--   **Confidentialité** : Modification du prompt système par défaut pour rappeler à Claude qu'il est hébergé en Europe. Suppression de l'option de région US dans les réglages.
--   **Version v2.2** : Passage à la version 2.2 de l'interface.
+-   **Recherche Globale** : Ajout d'une barre de recherche dans la sidebar pour scanner toutes les conversations passées et retrouver des informations.
+-   **Support Vidéo (Pegasus)** : Intégration de Twelve Labs Pegasus pour transcrire les vidéos. Nécessite une configuration S3 pour les fichiers > 10 Mo.
+-   **Documentation S3** : Ajout d'un guide (`GUIDE_S3.md`) pour aider l'utilisateur à configurer son bucket.
+-   **Interface v2.3** : Ajout de la barre de recherche.
 
 ## Prochaines Étapes
--   Utilisation courante.
--   Aucune maintenance prévue pour l'instant.
+-   L'utilisateur doit configurer son bucket S3 et les variables d'environnement sur le serveur pour activer pleinement Pegasus.
+-   Mise à jour du serveur requise.
