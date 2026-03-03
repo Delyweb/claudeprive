@@ -1,17 +1,13 @@
 # Active Context: ClaudePrivé
 
 ## Focus Actuel
-Le projet est terminé et fonctionnel. L'application a été mise à niveau vers la **version v2.1 (Mars 2026)** pour supporter les nouveaux modèles d'IA disponibles en Europe.
+Le projet est terminé, fonctionnel et optimisé. L'interface a été améliorée avec des fonctionnalités ergonomiques (Drag & Drop, Menu contextuel) et la sécurité renforcée (Prompt système, Régions EU uniquement).
 
-## Changements Récents (03/03/2026)
--   **Découverte** : Le compte AWS a accès aux modèles "Next Gen" 2026 (Claude 4.6/4.5), rendant les modèles 2024 obsolètes.
--   **Mise à niveau Modèles** :
-    -   **Claude Opus 4.6 (Europe)** : `eu.anthropic.claude-opus-4-6-v1:0` (et variante sans `:0`)
-    -   **Claude Opus 4.5 (Europe)** : `eu.anthropic.claude-opus-4-5-20251101-v1:0`
-    -   **Claude Sonnet 4.5 (Europe)** : `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`
-    -   **Claude Haiku 4.5 (Europe)** : `eu.anthropic.claude-haiku-4-5-20251001-v1:0`
--   **Interface v2.1** : Menu simplifié ne proposant que les modèles Europe 2026 performants et souverains.
+## Changements Récents
+-   **Ergonomie** : Ajout du **Drag & Drop** pour déplacer les conversations dans les projets, et d'un **menu contextuel (⋮)** sur chaque conversation.
+-   **Confidentialité** : Modification du prompt système par défaut pour rappeler à Claude qu'il est hébergé en Europe. Suppression de l'option de région US dans les réglages.
+-   **Version v2.2** : Passage à la version 2.2 de l'interface.
 
 ## Prochaines Étapes
--   Redéploiement sur le serveur.
--   Utilisation normale.
+-   Utilisation courante.
+-   Aucune maintenance prévue pour l'instant.

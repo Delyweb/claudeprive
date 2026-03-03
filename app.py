@@ -14,7 +14,7 @@ import boto3
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 Mo max upload
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 Mo max upload pour vidéo
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 UPLOADS_DIR = DATA_DIR / "uploads"
@@ -51,13 +51,9 @@ def get_bedrock_client(model_id=None):
 PRICING = {
     # ─── NEXT GEN (2026) ───
     
-    # Claude Opus 4.6 (Le plus puissant) - ID corrigé sans :0 final
-    "eu.anthropic.claude-opus-4-6-v1": {"input": 15.0, "output": 75.0},
-    "anthropic.claude-opus-4-6-v1":    {"input": 15.0, "output": 75.0},
-
-    # Claude Opus 4.5 (Fiable)
-    "eu.anthropic.claude-opus-4-5-20251101-v1:0": {"input": 15.0, "output": 75.0},
-    "anthropic.claude-opus-4-5-20251101-v1:0":    {"input": 15.0, "output": 75.0},
+    # Claude Opus 4.6 (Le plus puissant)
+    "eu.anthropic.claude-opus-4-6-v1:0": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-6-v1:0":    {"input": 15.0, "output": 75.0},
 
     # Claude Sonnet 4.5
     "eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.0, "output": 15.0},
@@ -80,8 +76,7 @@ def call_claude(messages, system_prompt, model=None):
         # Par défaut : Sonnet 4.5 (EU)
         model = load_settings().get("model", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0")
     
-    # Auto-correction pour les anciens IDs si nécessaire
-    # (Pas nécessaire si on force le refresh des settings au chargement)
+    # Auto-correction pour les anciens IDs si nécessaire (déjà fait au chargement)
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -208,11 +203,22 @@ def update_costs(input_tokens, output_tokens, cost_usd):
 
 PROMPTS_FILE = DATA_DIR / "prompts.json"
 
+# Prompt Socle (Sécurité & Confidentialité) - Toujours actif
+GLOBAL_SYSTEM_PROMPT = """
+Tu es une instance privée et sécurisée de Claude, opérée via AWS Bedrock en Europe.
+IMPORTANT : Tes réponses sont strictement confidentielles.
+- Tu es hébergé sur une infrastructure souveraine européenne.
+- Tes données NE SONT PAS utilisées pour l'entraînement des modèles.
+- Tu NE DOIS PAS dire que tu es hébergé aux USA ou sur l'interface publique d'Anthropic.
+- Tu dois agir comme un assistant professionnel de confiance.
+- Tu t'exprimes en français par défaut.
+"""
+
 DEFAULT_PROMPTS = [
     {
         "id": "general",
         "name": "Conseil général",
-        "prompt": "Tu es un assistant business polyvalent. Tu es une instance privée et sécurisée de Claude, hébergée en Europe via AWS Bedrock. Les données de l'utilisateur sont confidentielles et restent en Europe. Tu aides avec des conseils professionnels clairs, structurés et actionnables. Tu t'exprimes en français."
+        "prompt": "Tu es un assistant business polyvalent. Tu aides avec des conseils professionnels clairs, structurés et actionnables."
     },
     {
         "id": "juridique",
@@ -281,6 +287,14 @@ def save_settings(settings):
 def extract_text_from_file(filepath):
     """Extrait le texte d'un fichier uploadé."""
     ext = Path(filepath).suffix.lower()
+
+    if ext in (".mp4", ".mov", ".avi", ".mkv", ".webm"):
+        # Note: Pour une implémentation complète de Twelve Labs Pegasus,
+        # il faudrait uploader la vidéo sur un bucket S3 configuré,
+        # puis appeler l'API Bedrock avec l'URI S3.
+        # En l'absence de configuration S3 automatique, nous ne pouvons pas
+        # traiter la vidéo directement ici sans risque d'erreur.
+        return "[INFO] Vidéo reçue. Pour l'analyse complète (transcription + résumé) via Pegasus, une configuration S3 est nécessaire. Veuillez contacter l'administrateur pour configurer le bucket d'ingestion."
 
     if ext == ".pdf":
         try:
@@ -434,15 +448,18 @@ def api_chat():
     # Récupérer le prompt système actif
     prompt_id = conv.get("prompt_id", "general")
     prompts = load_prompts()
-    system_prompt = "Tu es un assistant professionnel. Tu t'exprimes en français."
+    user_system_prompt = "Tu es un assistant professionnel."
     for p in prompts:
         if p["id"] == prompt_id:
-            system_prompt = p["prompt"]
+            user_system_prompt = p["prompt"]
             break
+            
+    # Combiner avec le socle global
+    final_system_prompt = f"{GLOBAL_SYSTEM_PROMPT}\n\n--- Instructions Spécifiques ---\n{user_system_prompt}"
 
     # Appel Bedrock
     try:
-        result, usage = call_claude(conv["messages"], system_prompt)
+        result, usage = call_claude(conv["messages"], final_system_prompt)
     except Exception as e:
         # Retirer le message user si l'appel échoue
         conv["messages"].pop()
@@ -475,7 +492,8 @@ def api_chat():
 # ── Upload ──
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md", ".csv", ".json", ".xml", ".html",
-                      ".py", ".js", ".yml", ".yaml", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
+                      ".py", ".js", ".yml", ".yaml", ".png", ".jpg", ".jpeg", ".gif", ".webp",
+                      ".mp4", ".mov", ".avi", ".mkv", ".webm"}
 
 @app.route("/api/upload", methods=["POST"])
 def api_upload():
