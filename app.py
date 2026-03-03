@@ -45,10 +45,10 @@ def get_bedrock_client(model_id=None):
             # ou us-east-1, mais on préfère rester sur la région configurée si elle est EU.
             if not settings_region.startswith("eu-"):
                 target_region = "eu-central-1" # Fallback Europe
-        elif "opus" in model_id and settings_region == "eu-west-3":
-            # Claude 3 Opus n'est souvent pas dispo à Paris (eu-west-3),
-            # on tente Francfort (eu-central-1) pour rester en UE.
-            target_region = "eu-central-1"
+        elif "opus" in model_id:
+            # Claude 3 Opus n'est dispo qu'aux US pour l'instant (us-east-1).
+            # Impossible de le trouver en Europe.
+            target_region = "us-east-1"
 
     return boto3.client("bedrock-runtime", region_name=target_region)
 
@@ -57,14 +57,17 @@ PRICING = {
     # Cross-region Inference Profiles (EU)
     "eu.anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
     "eu.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
-    "eu.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
     
     # Cross-region Inference Profiles (US)
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
     "us.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 
     # Standard Regional IDs (Opus & others)
     "anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
+    # Sonnet 3.5 v2 (New Standard)
+    "anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
+    # Sonnet 3.5 v1 (Legacy)
     "anthropic.claude-3-5-sonnet-20240620-v1:0": {"input": 3.0, "output": 15.0},
     "anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
 }
