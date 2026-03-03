@@ -27,9 +27,30 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 # Client Bedrock
 # ─────────────────────────────────────────────
 
-def get_bedrock_client():
-    region = load_settings().get("region", "eu-west-3")
-    return boto3.client("bedrock-runtime", region_name=region)
+def get_bedrock_client(model_id=None):
+    """
+    Retourne un client Bedrock configuré pour la bonne région.
+    Si le modèle est explicite sur sa région (us. ou eu.), on force cette région.
+    """
+    settings_region = load_settings().get("region", "eu-west-3")
+    
+    # Détection automatique de la région cible
+    target_region = settings_region
+
+    if model_id:
+        if model_id.startswith("us."):
+            target_region = "us-east-1"
+        elif model_id.startswith("eu."):
+            # Pour les profils EU, on peut généralement appeler depuis n'importe quelle région EU
+            # ou us-east-1, mais on préfère rester sur la région configurée si elle est EU.
+            if not settings_region.startswith("eu-"):
+                target_region = "eu-central-1" # Fallback Europe
+        elif "opus" in model_id and settings_region == "eu-west-3":
+            # Claude 3 Opus n'est souvent pas dispo à Paris (eu-west-3),
+            # on tente Francfort (eu-central-1) pour rester en UE.
+            target_region = "eu-central-1"
+
+    return boto3.client("bedrock-runtime", region_name=target_region)
 
 # Tarifs Bedrock par million de tokens (USD)
 PRICING = {
@@ -61,7 +82,8 @@ def call_claude(messages, system_prompt, model=None):
         "messages": messages,
     })
 
-    client = get_bedrock_client()
+    # Obtenir le client adapté à la région du modèle
+    client = get_bedrock_client(model)
     resp = client.invoke_model(modelId=model, body=body)
     result = json.loads(resp["body"].read())
 
