@@ -97,6 +97,34 @@ def delete_conversation(conv_id):
 
 
 # ─────────────────────────────────────────────
+# Gestion des projets
+# ─────────────────────────────────────────────
+
+PROJECTS_FILE = DATA_DIR / "projects.json"
+
+def load_projects():
+    if PROJECTS_FILE.exists():
+        return json.loads(PROJECTS_FILE.read_text(encoding="utf-8"))
+    return {}
+
+def save_projects(projects):
+    PROJECTS_FILE.write_text(json.dumps(projects, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def get_project(project_id):
+    return load_projects().get(project_id)
+
+def save_project(project_id, project):
+    projects = load_projects()
+    projects[project_id] = project
+    save_projects(projects)
+
+def delete_project(project_id):
+    projects = load_projects()
+    projects.pop(project_id, None)
+    save_projects(projects)
+
+
+# ─────────────────────────────────────────────
 # Compteur de coûts
 # ─────────────────────────────────────────────
 
@@ -242,14 +270,21 @@ def index():
 @app.route("/api/conversations", methods=["GET"])
 def api_list_conversations():
     convs = load_conversations()
+    project_id = request.args.get("project_id")
     result = []
     for cid, conv in sorted(convs.items(), key=lambda x: x[1].get("updated_at", ""), reverse=True):
+        # Filtrer par projet si demandé
+        if project_id and conv.get("project_id") != project_id:
+            continue
+        if not project_id and conv.get("project_id"):
+            continue
         result.append({
             "id": cid,
             "title": conv.get("title", "Sans titre"),
             "created_at": conv.get("created_at", ""),
             "updated_at": conv.get("updated_at", ""),
             "message_count": len(conv.get("messages", [])),
+            "project_id": conv.get("project_id"),
         })
     return jsonify(result)
 
@@ -265,6 +300,7 @@ def api_create_conversation():
         "created_at": now,
         "updated_at": now,
         "prompt_id": data.get("prompt_id", load_settings().get("active_prompt", "general")),
+        "project_id": data.get("project_id"),
     }
     save_conversation(conv_id, conv)
     return jsonify({"id": conv_id, **conv}), 201
@@ -457,6 +493,124 @@ def api_delete_prompt(prompt_id):
     prompts = load_prompts()
     prompts = [p for p in prompts if p["id"] != prompt_id]
     save_prompts(prompts)
+    return jsonify({"ok": True})
+
+
+# ── Projets ──
+
+@app.route("/api/projects", methods=["GET"])
+def api_list_projects():
+    projects = load_projects()
+    result = []
+    for pid, proj in sorted(projects.items(), key=lambda x: x[1].get("created_at", ""), reverse=True):
+        result.append({"id": pid, **proj})
+    return jsonify(result)
+
+
+@app.route("/api/projects", methods=["POST"])
+def api_create_project():
+    data = request.get_json(silent=True) or {}
+    project_id = str(uuid.uuid4())[:8]
+    now = datetime.now().isoformat()
+    project = {
+        "name": data.get("name", "Nouveau projet"),
+        "description": data.get("description", ""),
+        "files": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    save_project(project_id, project)
+    return jsonify({"id": project_id, **project}), 201
+
+
+@app.route("/api/projects/<project_id>", methods=["GET"])
+def api_get_project(project_id):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    return jsonify({"id": project_id, **proj})
+
+
+@app.route("/api/projects/<project_id>", methods=["PUT"])
+def api_update_project(project_id):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    if "name" in data:
+        proj["name"] = data["name"]
+    if "description" in data:
+        proj["description"] = data["description"]
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj)
+    return jsonify({"id": project_id, **proj})
+
+
+@app.route("/api/projects/<project_id>", methods=["DELETE"])
+def api_delete_project(project_id):
+    # Détacher les conversations du projet (ne pas les supprimer)
+    convs = load_conversations()
+    for cid, conv in convs.items():
+        if conv.get("project_id") == project_id:
+            conv["project_id"] = None
+    save_conversations(convs)
+    delete_project(project_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/projects/<project_id>/upload", methods=["POST"])
+def api_project_upload(project_id):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+
+    if "file" not in request.files:
+        return jsonify({"error": "Aucun fichier envoyé"}), 400
+
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "Nom de fichier vide"}), 400
+
+    ext = Path(f.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({"error": f"Format non supporté : {ext}"}), 400
+
+    safe_name = f"{uuid.uuid4().hex[:8]}_{Path(f.filename).name}"
+    filepath = UPLOADS_DIR / safe_name
+    f.save(str(filepath))
+
+    text = extract_text_from_file(str(filepath))
+
+    file_info = {
+        "filename": f.filename,
+        "saved_as": safe_name,
+        "size": os.path.getsize(str(filepath)),
+        "uploaded_at": datetime.now().isoformat(),
+        "text_preview": text[:200] + "..." if len(text) > 200 else text,
+    }
+
+    proj["files"].append(file_info)
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj)
+
+    return jsonify({**file_info, "text": text})
+
+
+@app.route("/api/projects/<project_id>/files/<saved_as>", methods=["DELETE"])
+def api_project_delete_file(project_id, saved_as):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+
+    proj["files"] = [f for f in proj["files"] if f["saved_as"] != saved_as]
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj)
+
+    # Supprimer le fichier physique
+    filepath = UPLOADS_DIR / saved_as
+    if filepath.exists():
+        filepath.unlink()
+
     return jsonify({"ok": True})
 
 

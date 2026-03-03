@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClaudePrivé</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232ec4a0'/><text x='50' y='68' font-size='52' font-weight='bold' text-anchor='middle' fill='%230f1117' font-family='sans-serif'>CP</text></svg>">
     <style>
         /* ═══ Variables ═══ */
         :root {
@@ -142,6 +143,104 @@
             transition: all 0.2s;
         }
         .prompt-btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        /* Projects */
+        .project-item {
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 0.85rem;
+        }
+        .project-item:hover { background: var(--bg-hover); }
+        .project-item.active { background: var(--accent-dim); color: var(--accent); }
+        .project-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .project-badge {
+            font-size: 0.65rem;
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            margin-left: 6px;
+        }
+        .no-project-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+        .no-project-btn:hover { background: var(--bg-hover); }
+        .no-project-btn.active { background: var(--accent-dim); color: var(--accent); }
+
+        /* Project detail panel */
+        .project-detail {
+            display: none;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-tertiary);
+        }
+        .project-detail.visible { display: block; }
+        .project-detail-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        .project-detail-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .project-files-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .project-file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .project-file-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0 4px;
+        }
+        .project-file-remove:hover { color: var(--danger); }
+        .project-upload-btn {
+            width: 100%;
+            padding: 5px;
+            margin-top: 6px;
+            background: none;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .project-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .project-detail-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
 
         /* Conversations list */
         .conversations-list {
@@ -599,6 +698,30 @@
         </div>
     </div>
 
+    <!-- Projets -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+            Projets
+            <button class="prompt-btn-sm" style="flex:none; padding:3px 8px;" onclick="openProjectModal(true)">+</button>
+        </div>
+        <div class="no-project-btn active" id="noProjectBtn" onclick="selectProject(null)">Hors projet</div>
+        <div id="projectsList"></div>
+    </div>
+
+    <!-- Détail projet -->
+    <div class="project-detail" id="projectDetail">
+        <div class="project-detail-name" id="projectDetailName"></div>
+        <div class="project-detail-desc" id="projectDetailDesc"></div>
+        <div class="sidebar-section-title">Fichiers du projet</div>
+        <div class="project-files-list" id="projectFilesList"></div>
+        <button class="project-upload-btn" onclick="document.getElementById('projectFileInput').click()">+ Ajouter un fichier</button>
+        <input type="file" id="projectFileInput" style="display:none" onchange="handleProjectFileUpload(event)">
+        <div class="project-detail-actions">
+            <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
+            <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
+        </div>
+    </div>
+
     <!-- Conversations -->
     <div class="sidebar-section" style="border-bottom:none; padding-bottom:0;">
         <div class="sidebar-section-title">Conversations</div>
@@ -691,6 +814,22 @@
 </div>
 
 
+<!-- ═══ Project Modal ═══ -->
+<div class="modal-overlay" id="projectModal">
+    <div class="modal">
+        <h3 id="projectModalTitle">Nouveau projet</h3>
+        <input type="hidden" id="projectEditId">
+        <label>Nom du projet</label>
+        <input type="text" id="projectEditName" placeholder="Ex: Contrats Horyus">
+        <label>Description</label>
+        <textarea id="projectEditDesc" placeholder="Décrivez le contexte du projet..." rows="4"></textarea>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('projectModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="saveProject()">Sauvegarder</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════
 // State
@@ -700,12 +839,15 @@ let currentConvId = null;
 let prompts = [];
 let settings = {};
 let attachedFile = null; // { filename, text }
+let projects = [];
+let currentProjectId = null;
 
 // ═══════════════════════════════════════
 // Init
 // ═══════════════════════════════════════
 async function init() {
     await Promise.all([
+        loadProjects(),
         loadConversations(),
         loadPrompts(),
         loadSettings(),
@@ -731,7 +873,10 @@ async function api(url, method = 'GET', body = null) {
 // Conversations
 // ═══════════════════════════════════════
 async function loadConversations() {
-    conversations = await api('/api/conversations');
+    const url = currentProjectId
+        ? `/api/conversations?project_id=${currentProjectId}`
+        : '/api/conversations';
+    conversations = await api(url);
     renderConversations();
 }
 
@@ -747,7 +892,9 @@ function renderConversations() {
 
 async function newConversation() {
     const promptId = document.getElementById('promptSelect').value || 'general';
-    const data = await api('/api/conversations', 'POST', { prompt_id: promptId });
+    const body = { prompt_id: promptId };
+    if (currentProjectId) body.project_id = currentProjectId;
+    const data = await api('/api/conversations', 'POST', body);
     currentConvId = data.id;
     await loadConversations();
     renderMessages([]);
@@ -1015,6 +1162,141 @@ async function deletePrompt() {
     await api(`/api/prompts/${id}`, 'DELETE');
     closeModal('promptModal');
     await loadPrompts();
+}
+
+// ═══════════════════════════════════════
+// Projects
+// ═══════════════════════════════════════
+async function loadProjects() {
+    projects = await api('/api/projects');
+    renderProjects();
+}
+
+function renderProjects() {
+    const list = document.getElementById('projectsList');
+    list.innerHTML = projects.map(p => `
+        <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" onclick="selectProject('${p.id}')">
+            <span class="project-name">${escapeHtml(p.name)}</span>
+            <span class="project-badge">${(p.files || []).length} fichier${(p.files || []).length !== 1 ? 's' : ''}</span>
+        </div>
+    `).join('');
+
+    document.getElementById('noProjectBtn').classList.toggle('active', !currentProjectId);
+}
+
+async function selectProject(id) {
+    currentProjectId = id;
+    currentConvId = null;
+    renderProjects();
+
+    if (id) {
+        const proj = await api(`/api/projects/${id}`);
+        document.getElementById('projectDetail').classList.add('visible');
+        document.getElementById('projectDetailName').textContent = proj.name;
+        document.getElementById('projectDetailDesc').textContent = proj.description || 'Aucune description';
+        renderProjectFiles(proj.files || []);
+    } else {
+        document.getElementById('projectDetail').classList.remove('visible');
+    }
+
+    await loadConversations();
+
+    // Reset chat area
+    document.getElementById('messagesContainer').innerHTML = `
+        <div class="welcome" id="welcomeScreen">
+            <div class="welcome-icon">CP</div>
+            <h2>Bienvenue sur ClaudePrivé</h2>
+            <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+        </div>`;
+    document.getElementById('chatTitle').textContent = 'ClaudePrivé';
+}
+
+function renderProjectFiles(files) {
+    const list = document.getElementById('projectFilesList');
+    if (files.length === 0) {
+        list.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);padding:4px 0;">Aucun fichier</div>';
+        return;
+    }
+    list.innerHTML = files.map(f => `
+        <div class="project-file-item">
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.filename)}</span>
+            <button class="project-file-remove" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
+        </div>
+    `).join('');
+}
+
+function openProjectModal(isNew = false) {
+    if (isNew) {
+        document.getElementById('projectModalTitle').textContent = 'Nouveau projet';
+        document.getElementById('projectEditId').value = '';
+        document.getElementById('projectEditName').value = '';
+        document.getElementById('projectEditDesc').value = '';
+    } else {
+        const proj = projects.find(p => p.id === currentProjectId);
+        if (!proj) return;
+        document.getElementById('projectModalTitle').textContent = 'Modifier le projet';
+        document.getElementById('projectEditId').value = proj.id;
+        document.getElementById('projectEditName').value = proj.name;
+        document.getElementById('projectEditDesc').value = proj.description || '';
+    }
+    openModal('projectModal');
+}
+
+async function saveProject() {
+    const id = document.getElementById('projectEditId').value;
+    const name = document.getElementById('projectEditName').value.trim();
+    const description = document.getElementById('projectEditDesc').value.trim();
+    if (!name) { alert('Nom du projet requis'); return; }
+
+    if (id) {
+        await fetch(`/api/projects/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+    } else {
+        const data = await api('/api/projects', 'POST', { name, description });
+        currentProjectId = data.id;
+    }
+
+    closeModal('projectModal');
+    await loadProjects();
+    if (currentProjectId) selectProject(currentProjectId);
+}
+
+async function deleteCurrentProject() {
+    if (!currentProjectId) return;
+    if (!confirm('Supprimer ce projet ? Les conversations seront conservées hors projet.')) return;
+    await api(`/api/projects/${currentProjectId}`, 'DELETE');
+    currentProjectId = null;
+    await loadProjects();
+    document.getElementById('projectDetail').classList.remove('visible');
+    await loadConversations();
+}
+
+async function handleProjectFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file || !currentProjectId) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch(`/api/projects/${currentProjectId}/upload`, { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.error) { alert(data.error); return; }
+        // Refresh project detail
+        selectProject(currentProjectId);
+    } catch (err) {
+        alert('Erreur upload : ' + err.message);
+    }
+    e.target.value = '';
+}
+
+async function deleteProjectFile(savedAs) {
+    if (!currentProjectId) return;
+    await api(`/api/projects/${currentProjectId}/files/${savedAs}`, 'DELETE');
+    selectProject(currentProjectId);
 }
 
 // ═══════════════════════════════════════
