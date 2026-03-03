@@ -668,9 +668,10 @@ def api_upload():
     f.save(str(filepath))
 
     text = extract_text_from_file(str(filepath))
-    
+
     # Sauvegarder le texte complet pour le RAG / Contexte
-    txt_path = filepath.with_suffix(filepath.suffix + ".txt")
+    # Note: Path.with_suffix() interdit les suffixes multi-points en Python 3.12
+    txt_path = Path(str(filepath) + ".txt")
     txt_path.write_text(text, encoding="utf-8")
 
     file_info = {
@@ -707,9 +708,10 @@ def api_project_upload(project_id):
     f.save(str(filepath))
 
     text = extract_text_from_file(str(filepath))
-    
+
     # Sauvegarder le texte complet pour le RAG / Contexte
-    txt_path = filepath.with_suffix(filepath.suffix + ".txt")
+    # Note: Path.with_suffix() interdit les suffixes multi-points en Python 3.12
+    txt_path = Path(str(filepath) + ".txt")
     txt_path.write_text(text, encoding="utf-8")
 
     file_info = {
