@@ -1,17 +1,17 @@
 # Active Context: ClaudePrivé
 
 ## Focus Actuel
-Le projet est en phase de stabilisation après une erreur critique (502). La fonctionnalité de Journal (Automatique et Manuel) a été **désactivée** pour rétablir le service.
+Le projet a été restauré à un état stable (v2.3) après une série de problèmes liés au module de Journalisation Automatique. La priorité est la fiabilité du Chat, du RAG et de l'analyse Vidéo.
 
 ## Changements Récents
--   **HOTFIX (03/03/2026)** : Suppression complète du module `journal` qui empêchait le démarrage de Gunicorn en production.
--   **Fonctionnalités Actives** :
+-   **ROLLBACK (03/03/2026)** : Suppression complète de la fonctionnalité "Journal" (code + dépendances) pour résoudre l'erreur 502 persistante.
+-   **Fonctionnalités Actives & Stables** :
     -   Chat avec modèles 2026 (Opus 4.6, Sonnet 4.5, Haiku 4.5).
-    -   Recherche dans l'historique.
-    -   Upload Vidéo (Pegasus via S3).
-    -   Drag & Drop et Menu contextuel.
-    -   Prompts personnalisés (Domotique).
+    -   **RAG (Mémoire)** : Injection automatique du contenu des fichiers texte/PDF du projet.
+    -   **Vidéo** : Support upload 500Mo + Pegasus (via S3).
+    -   **Interface** : Drag & Drop, Menu contextuel, Recherche.
+    -   **Prompts** : Expert Domotique inclus.
 
 ## Prochaines Étapes
--   Redéployer pour valider la stabilité.
--   Réintroduire le Journal plus tard de manière isolée (micro-service ou script externe).
+-   Redéploiement propre (`docker-compose down` puis `up --build`).
+-   Validation du bon fonctionnement des fonctionnalités de base.
