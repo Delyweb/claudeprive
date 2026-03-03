@@ -14,6 +14,10 @@ import boto3
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
+print("\n" + "="*50)
+print("🚀 CLAUDEPRIVÉ - VERSION CORRIGÉE 2026-03-03 16:50 🚀")
+print("="*50 + "\n")
+
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 Mo max upload pour vidéo
 
 DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
