@@ -949,7 +949,10 @@
 
     <!-- Conversations -->
     <div class="sidebar-section" style="border-bottom:none; padding-bottom:0;">
-        <div class="sidebar-section-title">Conversations</div>
+        <div class="sidebar-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Conversations</span>
+            <button id="clearProjectFilterBtn" onclick="selectProject(null)" style="display:none;font-size:0.7rem;padding:2px 7px;border-radius:10px;background:var(--bg-tertiary);color:var(--text-muted);border:none;cursor:pointer;">× Toutes</button>
+        </div>
     </div>
     <div class="conversations-list" id="conversationsList"></div>
 
@@ -1620,8 +1623,10 @@ async function selectProject(id) {
         document.getElementById('projectDetailName').textContent = proj.name;
         document.getElementById('projectDetailDesc').textContent = proj.description || '';
         document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
+        document.getElementById('clearProjectFilterBtn').style.display = '';
     } else {
         document.getElementById('projectDetail').classList.remove('visible');
+        document.getElementById('clearProjectFilterBtn').style.display = 'none';
     }
 
     await loadConversations();
