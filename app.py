@@ -12,7 +12,7 @@ from pathlib import Path
 
 import boto3
 from flask import Flask, render_template, request, jsonify
-# import journal  <-- Désactivé temporairement pour debug 502
+import journal
 
 # Gestion d'erreur si APScheduler n'est pas installé
 try:
@@ -60,9 +60,13 @@ def get_bedrock_client(model_id=None):
 PRICING = {
     # ─── NEXT GEN (2026) ───
     
-    # Claude Opus 4.6 (Le plus puissant)
-    "eu.anthropic.claude-opus-4-6-v1:0": {"input": 15.0, "output": 75.0},
-    "anthropic.claude-opus-4-6-v1:0":    {"input": 15.0, "output": 75.0},
+    # Claude Opus 4.6 (Le plus puissant) - ID corrigé sans :0 final
+    "eu.anthropic.claude-opus-4-6-v1": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-6-v1":    {"input": 15.0, "output": 75.0},
+
+    # Claude Opus 4.5 (Fiable)
+    "eu.anthropic.claude-opus-4-5-20251101-v1:0": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-5-20251101-v1:0":    {"input": 15.0, "output": 75.0},
 
     # Claude Sonnet 4.5
     "eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.0, "output": 15.0},
@@ -750,24 +754,24 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
-# @app.route("/api/projects/<project_id>/journal", methods=["POST"])
-# def api_generate_journal_manual(project_id):
-#     """Génère manuellement le journal du jour pour un projet."""
-#     context = {
-#         'get_project': get_project,
-#         'load_conversations': load_conversations,
-#         'call_claude': call_claude,
-#         'save_project': save_project,
-#         'UPLOADS_DIR': UPLOADS_DIR,
-#         'load_projects': load_projects
-#     }
+@app.route("/api/projects/<project_id>/journal", methods=["POST"])
+def api_generate_journal_manual(project_id):
+    """Génère manuellement le journal du jour pour un projet."""
+    context = {
+        'get_project': get_project,
+        'load_conversations': load_conversations,
+        'call_claude': call_claude,
+        'save_project': save_project,
+        'UPLOADS_DIR': UPLOADS_DIR,
+        'load_projects': load_projects
+    }
     
-#     result = journal.generate_journal(project_id, context)
+    result = journal.generate_journal(project_id, context)
     
-#     if result:
-#         return jsonify(result)
-#     else:
-#         return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
+    if result:
+        return jsonify(result)
+    else:
+        return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
 
 
 # ── Réglages ──
