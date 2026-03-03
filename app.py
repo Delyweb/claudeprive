@@ -12,9 +12,9 @@ from pathlib import Path
 
 import boto3
 from flask import Flask, render_template, request, jsonify
-import journal
+# import journal  <-- Désactivé temporairement pour debug 502
 
-# Gestion d'erreur si APScheduler n'est pas installé (évite le crash 502)
+# Gestion d'erreur si APScheduler n'est pas installé
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     HAS_SCHEDULER = True
@@ -745,24 +745,24 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
-@app.route("/api/projects/<project_id>/journal", methods=["POST"])
-def api_generate_journal_manual(project_id):
-    """Génère manuellement le journal du jour pour un projet."""
-    context = {
-        'get_project': get_project,
-        'load_conversations': load_conversations,
-        'call_claude': call_claude,
-        'save_project': save_project,
-        'UPLOADS_DIR': UPLOADS_DIR,
-        'load_projects': load_projects
-    }
+# @app.route("/api/projects/<project_id>/journal", methods=["POST"])
+# def api_generate_journal_manual(project_id):
+#     """Génère manuellement le journal du jour pour un projet."""
+#     context = {
+#         'get_project': get_project,
+#         'load_conversations': load_conversations,
+#         'call_claude': call_claude,
+#         'save_project': save_project,
+#         'UPLOADS_DIR': UPLOADS_DIR,
+#         'load_projects': load_projects
+#     }
     
-    result = journal.generate_journal(project_id, context)
+#     result = journal.generate_journal(project_id, context)
     
-    if result:
-        return jsonify(result)
-    else:
-        return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
+#     if result:
+#         return jsonify(result)
+#     else:
+#         return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
 
 
 # ── Réglages ──
@@ -789,36 +789,34 @@ def api_save_settings():
 # ═════════════════════════════════════════════
 
 def start_scheduler():
-    if not HAS_SCHEDULER:
-        return
+    # Désactivé temporairement pour éviter le crash 502
+    return
+    
+    # if not HAS_SCHEDULER:
+    #     return
 
-    try:
-        scheduler = BackgroundScheduler()
+    # try:
+    #     scheduler = BackgroundScheduler()
         
-        context = {
-            'get_project': get_project,
-            'load_conversations': load_conversations,
-            'call_claude': call_claude,
-            'save_project': save_project,
-            'UPLOADS_DIR': UPLOADS_DIR,
-            'load_projects': load_projects
-        }
+    #     context = {
+    #         'get_project': get_project,
+    #         'load_conversations': load_conversations,
+    #         'call_claude': call_claude,
+    #         'save_project': save_project,
+    #         'UPLOADS_DIR': UPLOADS_DIR,
+    #         'load_projects': load_projects
+    #     }
         
-        # Job quotidien à 23h00
-        scheduler.add_job(func=journal.run_daily_journals, trigger="cron", hour=23, minute=0, args=[context])
-        scheduler.start()
-        print("[INFO] Scheduler démarré pour le journal quotidien.")
-    except Exception as e:
-        print(f"[ERROR] Impossible de démarrer le scheduler : {e}")
-
-# Démarrage du scheduler au lancement de l'application (même avec Gunicorn si configuré)
-# Pour éviter les problèmes de concurrence avec Gunicorn (plusieurs workers),
-# on désactive le démarrage automatique par défaut en prod pour l'instant.
-# L'utilisateur devra compter sur le déclenchement manuel ou configurer un worker dédié.
+    #     # Job quotidien à 23h00
+    #     scheduler.add_job(func=journal.run_daily_journals, trigger="cron", hour=23, minute=0, args=[context])
+    #     scheduler.start()
+    #     print("[INFO] Scheduler démarré pour le journal quotidien.")
+    # except Exception as e:
+    #     print(f"[ERROR] Impossible de démarrer le scheduler : {e}")
 
 if __name__ == "__main__":
     # Démarrer le scheduler uniquement en mode dev local
-    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        start_scheduler()
+    # if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    #     start_scheduler()
         
     app.run(debug=True, port=8009)
