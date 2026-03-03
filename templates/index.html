@@ -1096,6 +1096,8 @@
         <input type="text" id="projectEditName" placeholder="Ex: Contrats Horyus">
         <label>Description</label>
         <textarea id="projectEditDesc" placeholder="Décrivez le contexte du projet..." rows="4"></textarea>
+        <label>Prompt par défaut</label>
+        <select id="projectEditPrompt" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);"></select>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeModal('projectModal')">Annuler</button>
             <button class="modal-btn modal-btn-primary" onclick="saveProject()">Sauvegarder</button>
@@ -1632,6 +1634,10 @@ async function selectProject(id) {
         document.getElementById('projectDetailDesc').textContent = proj.description || '';
         document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
         document.getElementById('clearProjectFilterBtn').style.display = '';
+        // Appliquer le prompt par défaut du projet
+        if (proj.default_prompt_id) {
+            document.getElementById('promptSelect').value = proj.default_prompt_id;
+        }
     } else {
         document.getElementById('projectDetail').classList.remove('visible');
         document.getElementById('clearProjectFilterBtn').style.display = 'none';
@@ -1774,11 +1780,17 @@ async function generateJournalPage(e) {
 }
 
 function openProjectModal(isNew = false) {
+    // Remplir le select de prompts
+    const sel = document.getElementById('projectEditPrompt');
+    sel.innerHTML = '<option value="">— Aucun prompt par défaut —</option>' +
+        prompts.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+
     if (isNew) {
         document.getElementById('projectModalTitle').textContent = 'Nouveau projet';
         document.getElementById('projectEditId').value = '';
         document.getElementById('projectEditName').value = '';
         document.getElementById('projectEditDesc').value = '';
+        sel.value = '';
     } else {
         const proj = projects.find(p => p.id === currentProjectId);
         if (!proj) return;
@@ -1786,6 +1798,7 @@ function openProjectModal(isNew = false) {
         document.getElementById('projectEditId').value = proj.id;
         document.getElementById('projectEditName').value = proj.name;
         document.getElementById('projectEditDesc').value = proj.description || '';
+        sel.value = proj.default_prompt_id || '';
     }
     openModal('projectModal');
 }
@@ -1794,16 +1807,17 @@ async function saveProject() {
     const id = document.getElementById('projectEditId').value;
     const name = document.getElementById('projectEditName').value.trim();
     const description = document.getElementById('projectEditDesc').value.trim();
+    const default_prompt_id = document.getElementById('projectEditPrompt').value || null;
     if (!name) { alert('Nom du projet requis'); return; }
 
     if (id) {
         await fetch(`/api/projects/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description })
+            body: JSON.stringify({ name, description, default_prompt_id })
         });
     } else {
-        const data = await api('/api/projects', 'POST', { name, description });
+        const data = await api('/api/projects', 'POST', { name, description, default_prompt_id });
         currentProjectId = data.id;
     }
 
