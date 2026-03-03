@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClaudePrivé</title>
+    <style>
+        /* ═══ Variables ═══ */
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-tertiary: #242736;
+            --bg-hover: #2d3044;
+            --text-primary: #e4e6f0;
+            --text-secondary: #9ca0b4;
+            --text-muted: #6b7089;
+            --accent: #2ec4a0;
+            --accent-hover: #26a88a;
+            --accent-dim: rgba(46, 196, 160, 0.15);
+            --danger: #e74c6f;
+            --danger-hover: #d1365a;
+            --border: #2d3044;
+            --radius: 10px;
+            --shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+
+        /* ═══ Reset ═══ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ═══ Sidebar ═══ */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .sidebar-header .logo {
+            width: 32px; height: 32px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 700; color: var(--bg-primary);
+        }
+
+        .new-chat-btn {
+            margin: 12px 16px;
+            padding: 10px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .new-chat-btn:hover { background: var(--accent-hover); }
+
+        /* Sections sidebar */
+        .sidebar-section {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        /* Costs display */
+        .costs-display {
+            display: flex;
+            gap: 12px;
+            padding-bottom: 4px;
+        }
+        .cost-item {
+            flex: 1;
+            text-align: center;
+        }
+        .cost-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .cost-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        /* Prompt selector */
+        .prompt-select {
+            width: 100%;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .prompt-select:focus { outline: none; border-color: var(--accent); }
+
+        .prompt-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .prompt-btn-sm {
+            flex: 1;
+            padding: 5px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .prompt-btn-sm:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        /* Conversations list */
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .conv-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .conv-item:hover { background: var(--bg-hover); }
+        .conv-item.active { background: var(--accent-dim); }
+        .conv-title {
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        .conv-delete {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .conv-item:hover .conv-delete { display: block; }
+        .conv-delete:hover { color: var(--danger); background: rgba(231,76,111,0.15); }
+
+        /* Settings link */
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+        .settings-btn {
+            width: 100%;
+            padding: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .settings-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        /* ═══ Chat Area ═══ */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+        .chat-header-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .chat-header-model {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        /* Messages */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 780px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .message-avatar {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .message.user .message-avatar {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+        .message.assistant .message-avatar {
+            background: var(--accent);
+            color: var(--bg-primary);
+            font-weight: 700;
+        }
+
+        .message-body { flex: 1; min-width: 0; }
+        .message-content {
+            font-size: 0.95rem;
+            line-height: 1.65;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .message-content p { margin-bottom: 8px; }
+        .message-content p:last-child { margin-bottom: 0; }
+        .message-content code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88em;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .message-content pre {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .message-meta {
+            margin-top: 6px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+        .message-cost {
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        /* File attachment badge */
+        .file-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: none;
+            max-width: 780px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 8px 0;
+        }
+        .typing-indicator.visible { display: flex; gap: 12px; align-items: center; }
+        .typing-dots {
+            display: flex; gap: 4px;
+        }
+        .typing-dots span {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Welcome screen */
+        .welcome {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: var(--text-muted);
+        }
+        .welcome-icon {
+            width: 64px; height: 64px;
+            background: var(--accent-dim);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: var(--accent);
+        }
+        .welcome h2 { color: var(--text-primary); font-size: 1.3rem; }
+        .welcome p { max-width: 400px; text-align: center; line-height: 1.5; font-size: 0.9rem; }
+
+        /* ═══ Input Bar ═══ */
+        .input-bar {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+        .input-wrapper {
+            max-width: 780px;
+            margin: 0 auto;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .file-upload-btn {
+            width: 42px; height: 42px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            font-size: 1.1rem;
+        }
+        .file-upload-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .file-upload-btn.has-file { color: var(--accent); border-color: var(--accent); }
+
+        #messageInput {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 16px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            resize: none;
+            min-height: 42px;
+            max-height: 150px;
+            font-family: inherit;
+            line-height: 1.4;
+        }
+        #messageInput:focus { outline: none; border-color: var(--accent); }
+        #messageInput::placeholder { color: var(--text-muted); }
+
+        .send-btn {
+            width: 42px; height: 42px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: var(--bg-primary);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            font-size: 1.1rem;
+        }
+        .send-btn:hover { background: var(--accent-hover); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Attached file preview */
+        .attached-file {
+            display: none;
+            max-width: 780px;
+            margin: 0 auto 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            align-items: center;
+            gap: 8px;
+        }
+        .attached-file.visible { display: flex; }
+        .attached-file-name { flex: 1; }
+        .attached-file-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .attached-file-remove:hover { color: var(--danger); }
+
+        /* ═══ Modal ═══ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            width: 480px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+        }
+        .modal h3 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+        .modal label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            margin-top: 14px;
+        }
+        .modal select, .modal input, .modal textarea {
+            width: 100%;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+        .modal textarea { min-height: 80px; resize: vertical; }
+        .modal select:focus, .modal input:focus, .modal textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .modal-btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .modal-btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        .modal-btn-primary:hover { background: var(--accent-hover); }
+        .modal-btn-cancel {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+        }
+        .modal-btn-cancel:hover { background: var(--bg-hover); }
+        .modal-btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        .modal-btn-danger:hover { background: var(--danger-hover); }
+
+        /* ═══ Scrollbar ═══ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ═══ Mobile ═══ */
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                height: 100vh;
+                z-index: 50;
+                transition: left 0.3s;
+            }
+            .sidebar.open { left: 0; }
+            .sidebar-toggle { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ Sidebar ═══ -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">CP</div>
+        <h1>ClaudePrivé</h1>
+    </div>
+
+    <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
+
+    <!-- Coûts -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Coûts</div>
+        <div class="costs-display">
+            <div class="cost-item">
+                <div class="cost-value" id="costToday">$0.00</div>
+                <div class="cost-label">Aujourd'hui</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-value" id="costMonth">$0.00</div>
+                <div class="cost-label">Ce mois</div>
+            </div>
+            <div class="cost-item">
+                <div class="cost-value" id="costTotal">$0.00</div>
+                <div class="cost-label">Total</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt actif -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Prompt système</div>
+        <select class="prompt-select" id="promptSelect" onchange="changeActivePrompt()"></select>
+        <div class="prompt-actions">
+            <button class="prompt-btn-sm" onclick="openPromptModal()">Modifier</button>
+            <button class="prompt-btn-sm" onclick="openPromptModal(true)">+ Nouveau</button>
+        </div>
+    </div>
+
+    <!-- Conversations -->
+    <div class="sidebar-section" style="border-bottom:none; padding-bottom:0;">
+        <div class="sidebar-section-title">Conversations</div>
+    </div>
+    <div class="conversations-list" id="conversationsList"></div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+        <button class="settings-btn" onclick="openSettingsModal()">Réglages</button>
+    </div>
+</aside>
+
+<!-- ═══ Chat Area ═══ -->
+<main class="chat-area">
+    <div class="chat-header">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+            <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
+        </div>
+        <span class="chat-header-model" id="chatModel">Sonnet</span>
+    </div>
+
+    <div class="messages" id="messagesContainer">
+        <div class="welcome" id="welcomeScreen">
+            <div class="welcome-icon">CP</div>
+            <h2>Bienvenue sur ClaudePrivé</h2>
+            <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+        </div>
+    </div>
+
+    <div class="typing-indicator" id="typingIndicator">
+        <div style="width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--bg-primary);">C</div>
+        <div class="typing-dots">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <div class="input-bar">
+        <div class="attached-file" id="attachedFile">
+            <span>📎</span>
+            <span class="attached-file-name" id="attachedFileName"></span>
+            <button class="attached-file-remove" onclick="removeAttachment()">✕</button>
+        </div>
+        <div class="input-wrapper">
+            <button class="file-upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="Joindre un fichier">📎</button>
+            <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
+            <textarea id="messageInput" placeholder="Écrivez votre message..." rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Envoyer">➤</button>
+        </div>
+    </div>
+</main>
+
+<!-- ═══ Settings Modal ═══ -->
+<div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+        <h3>Réglages</h3>
+        <label>Modèle Claude</label>
+        <select id="settingsModel">
+            <option value="anthropic.claude-sonnet-4-20250514">Claude Sonnet (rapide, économique)</option>
+            <option value="anthropic.claude-haiku-4-5-20251001">Claude Haiku (ultra rapide, très économique)</option>
+        </select>
+        <label>Région AWS</label>
+        <select id="settingsRegion">
+            <option value="eu-west-3">Europe (Paris) — eu-west-3</option>
+            <option value="eu-west-1">Europe (Irlande) — eu-west-1</option>
+            <option value="us-east-1">US East (Virginie) — us-east-1</option>
+        </select>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('settingsModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="saveSettings()">Sauvegarder</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Prompt Modal ═══ -->
+<div class="modal-overlay" id="promptModal">
+    <div class="modal">
+        <h3 id="promptModalTitle">Modifier le prompt</h3>
+        <input type="hidden" id="promptEditId">
+        <label>Nom</label>
+        <input type="text" id="promptEditName" placeholder="Nom du prompt">
+        <label>Prompt système</label>
+        <textarea id="promptEditText" placeholder="Instructions pour Claude..." rows="6"></textarea>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-danger" id="promptDeleteBtn" onclick="deletePrompt()" style="margin-right:auto">Supprimer</button>
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('promptModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="savePrompt()">Sauvegarder</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════
+// State
+// ═══════════════════════════════════════
+let conversations = [];
+let currentConvId = null;
+let prompts = [];
+let settings = {};
+let attachedFile = null; // { filename, text }
+
+// ═══════════════════════════════════════
+// Init
+// ═══════════════════════════════════════
+async function init() {
+    await Promise.all([
+        loadConversations(),
+        loadPrompts(),
+        loadSettings(),
+        loadCosts(),
+    ]);
+}
+init();
+
+// ═══════════════════════════════════════
+// API helpers
+// ═══════════════════════════════════════
+async function api(url, method = 'GET', body = null) {
+    const opts = { method, headers: {} };
+    if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, opts);
+    return res.json();
+}
+
+// ═══════════════════════════════════════
+// Conversations
+// ═══════════════════════════════════════
+async function loadConversations() {
+    conversations = await api('/api/conversations');
+    renderConversations();
+}
+
+function renderConversations() {
+    const list = document.getElementById('conversationsList');
+    list.innerHTML = conversations.map(c => `
+        <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" onclick="selectConversation('${c.id}')">
+            <span class="conv-title">${escapeHtml(c.title)}</span>
+            <button class="conv-delete" onclick="event.stopPropagation(); deleteConversation('${c.id}')" title="Supprimer">✕</button>
+        </div>
+    `).join('');
+}
+
+async function newConversation() {
+    const promptId = document.getElementById('promptSelect').value || 'general';
+    const data = await api('/api/conversations', 'POST', { prompt_id: promptId });
+    currentConvId = data.id;
+    await loadConversations();
+    renderMessages([]);
+    document.getElementById('chatTitle').textContent = data.title;
+    document.getElementById('welcomeScreen').style.display = 'none';
+    document.getElementById('messageInput').focus();
+}
+
+async function selectConversation(id) {
+    currentConvId = id;
+    const data = await api(`/api/conversations/${id}`);
+    document.getElementById('chatTitle').textContent = data.title;
+    document.getElementById('welcomeScreen').style.display = 'none';
+    renderMessages(data.messages || []);
+    renderConversations();
+
+    // Set prompt selector to conversation's prompt
+    if (data.prompt_id) {
+        document.getElementById('promptSelect').value = data.prompt_id;
+    }
+}
+
+async function deleteConversation(id) {
+    if (!confirm('Supprimer cette conversation ?')) return;
+    await api(`/api/conversations/${id}`, 'DELETE');
+    if (currentConvId === id) {
+        currentConvId = null;
+        document.getElementById('messagesContainer').innerHTML = `
+            <div class="welcome" id="welcomeScreen">
+                <div class="welcome-icon">CP</div>
+                <h2>Bienvenue sur ClaudePrivé</h2>
+                <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+            </div>`;
+        document.getElementById('chatTitle').textContent = 'ClaudePrivé';
+    }
+    await loadConversations();
+}
+
+// ═══════════════════════════════════════
+// Messages
+// ═══════════════════════════════════════
+function renderMessages(messages) {
+    const container = document.getElementById('messagesContainer');
+    if (messages.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = messages.map((m, i) => {
+        const isUser = m.role === 'user';
+        const avatar = isUser ? '👤' : 'C';
+        const costHtml = m.cost ? `<span class="message-cost">${formatCost(m.cost)}</span>` : '';
+        return `
+            <div class="message ${m.role}">
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-body">
+                    <div class="message-content">${formatMessage(m.content)}</div>
+                    ${costHtml ? `<div class="message-meta">${costHtml}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+function addMessage(role, content, cost = null) {
+    const container = document.getElementById('messagesContainer');
+    const isUser = role === 'user';
+    const avatar = isUser ? '👤' : 'C';
+    const costHtml = cost ? `<div class="message-meta"><span class="message-cost">${formatCost(cost)}</span></div>` : '';
+    const div = document.createElement('div');
+    div.innerHTML = `
+        <div class="message ${role}">
+            <div class="message-avatar">${avatar}</div>
+            <div class="message-body">
+                <div class="message-content">${formatMessage(content)}</div>
+                ${costHtml}
+            </div>
+        </div>
+    `;
+    container.appendChild(div.firstElementChild);
+    container.scrollTop = container.scrollHeight;
+}
+
+// ═══════════════════════════════════════
+// Send Message
+// ═══════════════════════════════════════
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    // Créer une conversation si aucune active
+    if (!currentConvId) {
+        const promptId = document.getElementById('promptSelect').value || 'general';
+        const data = await api('/api/conversations', 'POST', { prompt_id: promptId });
+        currentConvId = data.id;
+        document.getElementById('welcomeScreen').style.display = 'none';
+        await loadConversations();
+    }
+
+    // Afficher le message user
+    const displayMsg = attachedFile
+        ? `📎 ${attachedFile.filename}\n\n${msg}`
+        : msg;
+    addMessage('user', displayMsg);
+
+    input.value = '';
+    input.style.height = 'auto';
+    setLoading(true);
+
+    const body = {
+        conversation_id: currentConvId,
+        message: msg,
+    };
+    if (attachedFile) {
+        body.file_content = attachedFile.text;
+    }
+
+    removeAttachment();
+
+    try {
+        const data = await api('/api/chat', 'POST', body);
+        if (data.error) {
+            addMessage('assistant', `Erreur : ${data.error}`);
+        } else {
+            addMessage('assistant', data.response, data.usage?.cost_usd);
+            // Refresh costs & conversation list
+            loadCosts();
+            loadConversations();
+        }
+    } catch (err) {
+        addMessage('assistant', `Erreur réseau : ${err.message}`);
+    }
+
+    setLoading(false);
+}
+
+function setLoading(loading) {
+    document.getElementById('typingIndicator').classList.toggle('visible', loading);
+    document.getElementById('sendBtn').disabled = loading;
+    document.getElementById('messageInput').disabled = loading;
+}
+
+function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+}
+
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+// ═══════════════════════════════════════
+// File Upload
+// ═══════════════════════════════════════
+async function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        attachedFile = { filename: data.filename, text: data.text };
+        document.getElementById('attachedFileName').textContent = data.filename;
+        document.getElementById('attachedFile').classList.add('visible');
+        document.getElementById('uploadBtn').classList.add('has-file');
+    } catch (err) {
+        alert('Erreur upload : ' + err.message);
+    }
+
+    e.target.value = '';
+}
+
+function removeAttachment() {
+    attachedFile = null;
+    document.getElementById('attachedFile').classList.remove('visible');
+    document.getElementById('uploadBtn').classList.remove('has-file');
+}
+
+// ═══════════════════════════════════════
+// Costs
+// ═══════════════════════════════════════
+async function loadCosts() {
+    const data = await api('/api/costs');
+    document.getElementById('costToday').textContent = formatCostDisplay(data.today?.cost_usd || 0);
+    document.getElementById('costMonth').textContent = formatCostDisplay(data.month?.cost_usd || 0);
+    document.getElementById('costTotal').textContent = formatCostDisplay(data.total?.cost_usd || 0);
+}
+
+function formatCostDisplay(usd) {
+    if (usd < 0.01) return '$' + usd.toFixed(4);
+    return '$' + usd.toFixed(2);
+}
+
+function formatCost(usd) {
+    if (!usd) return '';
+    if (usd < 0.001) return '$' + usd.toFixed(5);
+    return '$' + usd.toFixed(4);
+}
+
+// ═══════════════════════════════════════
+// Prompts
+// ═══════════════════════════════════════
+async function loadPrompts() {
+    prompts = await api('/api/prompts');
+    renderPromptSelect();
+}
+
+function renderPromptSelect() {
+    const sel = document.getElementById('promptSelect');
+    sel.innerHTML = prompts.map(p =>
+        `<option value="${p.id}" ${p.id === settings.active_prompt ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+}
+
+async function changeActivePrompt() {
+    const promptId = document.getElementById('promptSelect').value;
+    settings.active_prompt = promptId;
+    await api('/api/settings', 'POST', { active_prompt: promptId });
+}
+
+function openPromptModal(isNew = false) {
+    if (isNew) {
+        document.getElementById('promptModalTitle').textContent = 'Nouveau prompt';
+        document.getElementById('promptEditId').value = '';
+        document.getElementById('promptEditName').value = '';
+        document.getElementById('promptEditText').value = '';
+        document.getElementById('promptDeleteBtn').style.display = 'none';
+    } else {
+        const id = document.getElementById('promptSelect').value;
+        const p = prompts.find(x => x.id === id);
+        if (!p) return;
+        document.getElementById('promptModalTitle').textContent = 'Modifier le prompt';
+        document.getElementById('promptEditId').value = p.id;
+        document.getElementById('promptEditName').value = p.name;
+        document.getElementById('promptEditText').value = p.prompt;
+        document.getElementById('promptDeleteBtn').style.display = 'block';
+    }
+    openModal('promptModal');
+}
+
+async function savePrompt() {
+    const id = document.getElementById('promptEditId').value || undefined;
+    const name = document.getElementById('promptEditName').value.trim();
+    const prompt = document.getElementById('promptEditText').value.trim();
+    if (!name || !prompt) { alert('Nom et prompt requis'); return; }
+    await api('/api/prompts', 'POST', { id, name, prompt });
+    closeModal('promptModal');
+    await loadPrompts();
+}
+
+async function deletePrompt() {
+    const id = document.getElementById('promptEditId').value;
+    if (!id || !confirm('Supprimer ce prompt ?')) return;
+    await api(`/api/prompts/${id}`, 'DELETE');
+    closeModal('promptModal');
+    await loadPrompts();
+}
+
+// ═══════════════════════════════════════
+// Settings
+// ═══════════════════════════════════════
+async function loadSettings() {
+    settings = await api('/api/settings');
+    document.getElementById('settingsModel').value = settings.model || 'anthropic.claude-sonnet-4-20250514';
+    document.getElementById('settingsRegion').value = settings.region || 'eu-west-3';
+    updateModelBadge();
+}
+
+function updateModelBadge() {
+    const m = settings.model || '';
+    let label = 'Sonnet';
+    if (m.includes('haiku')) label = 'Haiku';
+    document.getElementById('chatModel').textContent = label;
+}
+
+function openSettingsModal() {
+    document.getElementById('settingsModel').value = settings.model;
+    document.getElementById('settingsRegion').value = settings.region;
+    openModal('settingsModal');
+}
+
+async function saveSettings() {
+    const model = document.getElementById('settingsModel').value;
+    const region = document.getElementById('settingsRegion').value;
+    settings = await api('/api/settings', 'POST', { model, region });
+    updateModelBadge();
+    closeModal('settingsModal');
+}
+
+// ═══════════════════════════════════════
+// Modal helpers
+// ═══════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('visible'); }
+function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', e => {
+        if (e.target === el) el.classList.remove('visible');
+    });
+});
+
+// ═══════════════════════════════════════
+// Sidebar toggle (mobile)
+// ═══════════════════════════════════════
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ═══════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatMessage(text) {
+    if (!text) return '';
+    // Basic markdown: bold, italic, code blocks, inline code
+    let html = escapeHtml(text);
+
+    // Code blocks
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Line breaks
+    html = html.replace(/\n/g, '<br>');
+
+    return html;
+}
+</script>
+
+</body>
+</html>
