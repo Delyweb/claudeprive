@@ -45,24 +45,22 @@ def get_bedrock_client(model_id=None):
             # ou us-east-1, mais on préfère rester sur la région configurée si elle est EU.
             if not settings_region.startswith("eu-"):
                 target_region = "eu-central-1" # Fallback Europe
-        elif "opus" in model_id:
-            # Claude 3 Opus n'est dispo qu'aux US pour l'instant (us-east-1).
-            # Impossible de le trouver en Europe.
+        elif "opus" in model_id or "haiku" in model_id:
+            # Claude 3 Opus et Claude 3.5 Haiku sont US Only pour l'instant
             target_region = "us-east-1"
 
     return boto3.client("bedrock-runtime", region_name=target_region)
 
 # Tarifs Bedrock par million de tokens (USD)
 PRICING = {
-    # 1. Claude 3.5 Sonnet v2 (US Only - Intelligent & Rapide)
+    # 1. Claude 3.5 Sonnet v2 (US - Intelligent & Rapide)
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
     
-    # 2. Claude 3 Opus (US Only - Très intelligent)
-    # Note: Utilise le profil cross-region US car le throughput on-demand standard n'est plus supporté
+    # 2. Claude 3 Opus (US - Très intelligent)
     "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 
-    # 3. Claude 3 Haiku (EU - Rapide & RGPD)
-    "eu.anthropic.claude-3-haiku-20240307-v1:0": {"input": 0.25, "output": 1.25},
+    # 3. Claude 3.5 Haiku (US - Ultra Rapide & Intelligent)
+    "us.anthropic.claude-3-5-haiku-20241022-v1:0": {"input": 1.0, "output": 5.0},
 }
 
 def call_claude(messages, system_prompt, model=None):
