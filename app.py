@@ -58,6 +58,7 @@ PRICING = {
     "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
     
     # 2. Claude 3 Opus (US Only - Très intelligent)
+    # Note: Utilise le profil cross-region US car le throughput on-demand standard n'est plus supporté
     "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
 
     # 3. Claude 3 Haiku (EU - Rapide & RGPD)
@@ -69,6 +70,10 @@ def call_claude(messages, system_prompt, model=None):
     if model is None:
         # Par défaut : Sonnet 3.5 v2 (US) car c'est le seul fiable "intelligent"
         model = load_settings().get("model", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
+    
+    # Correction automatique pour Opus si l'ancien ID standard est encore utilisé par les settings
+    if model == "anthropic.claude-3-opus-20240229-v1:0":
+        model = "us.anthropic.claude-3-opus-20240229-v1:0"
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
