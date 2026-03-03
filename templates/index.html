@@ -1040,11 +1040,12 @@ function renderConversations() {
     const list = document.getElementById('conversationsList');
     list.innerHTML = conversations.map(c => `
         <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" 
-             onclick="selectConversation('${c.id}')"
              draggable="true"
              ondragstart="handleDragStart(event, '${c.id}')"
              data-id="${c.id}">
-            <span class="conv-title">${escapeHtml(c.title)}</span>
+            <div class="conv-content" onclick="selectConversation('${c.id}')" style="flex:1; overflow:hidden; display:flex; align-items:center;">
+                <span class="conv-title">${escapeHtml(c.title)}</span>
+            </div>
             <button class="conv-actions-btn" onclick="showContextMenu(event, '${c.id}')">⋮</button>
         </div>
     `).join('');
