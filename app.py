@@ -538,6 +538,33 @@ def api_chat():
     # Combiner avec le socle global
     final_system_prompt = f"{GLOBAL_SYSTEM_PROMPT}\n\n--- Instructions Spécifiques ---\n{user_system_prompt}"
 
+    # Injection du contexte du projet (Fichiers)
+    project_id = conv.get("project_id")
+    if project_id:
+        proj = get_project(project_id)
+        if proj and proj.get("files"):
+            project_context = "\n\n--- DOCUMENTS DU PROJET ---\n"
+            has_docs = False
+            for file in proj["files"]:
+                saved_as = file.get("saved_as")
+                if saved_as:
+                    # Chercher le fichier .txt associé
+                    txt_path = UPLOADS_DIR / (saved_as + ".txt")
+                    if txt_path.exists():
+                        try:
+                            content = txt_path.read_text(encoding="utf-8")
+                            # Limiter la taille pour ne pas exploser le contexte (ex: 50k caractères par fichier)
+                            if len(content) > 50000:
+                                content = content[:50000] + "\n...[Tronqué]..."
+                            project_context += f"\n[Document: {file['filename']}]\n{content}\n"
+                            has_docs = True
+                        except Exception as e:
+                            print(f"Erreur lecture contexte {saved_as}: {e}")
+            
+            if has_docs:
+                final_system_prompt += project_context
+                final_system_prompt += "\n\nUtilise ces documents pour répondre aux questions sur le projet."
+
     # Appel Bedrock
     try:
         result, usage = call_claude(conv["messages"], final_system_prompt)
@@ -594,153 +621,33 @@ def api_upload():
     filepath = UPLOADS_DIR / safe_name
     f.save(str(filepath))
 
-    # Extraire le texte
     text = extract_text_from_file(str(filepath))
+    
+    # Sauvegarder le texte complet pour le RAG / Contexte
+    txt_path = filepath.with_suffix(filepath.suffix + ".txt")
+    txt_path.write_text(text, encoding="utf-8")
 
-    return jsonify({
+    file_info = {
         "filename": f.filename,
         "saved_as": safe_name,
-        "text": text,
         "size": os.path.getsize(str(filepath)),
-    })
-
-
-# ── Coûts ──
-
-@app.route("/api/costs", methods=["GET"])
-def api_costs():
-    costs = load_costs()
-    today = date.today().isoformat()
-    month = today[:7]  # "2026-03"
-
-    daily_today = costs["daily"].get(today, {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0})
-
-    # Calculer le total du mois
-    monthly = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0}
-    for day_key, day_val in costs["daily"].items():
-        if day_key.startswith(month):
-            monthly["input_tokens"] += day_val["input_tokens"]
-            monthly["output_tokens"] += day_val["output_tokens"]
-            monthly["cost_usd"] = round(monthly["cost_usd"] + day_val["cost_usd"], 6)
-
-    return jsonify({
-        "today": daily_today,
-        "month": monthly,
-        "total": costs["total"],
-    })
-
-
-# ── Prompts ──
-
-@app.route("/api/prompts", methods=["GET"])
-def api_get_prompts():
-    return jsonify(load_prompts())
-
-
-@app.route("/api/prompts", methods=["POST"])
-def api_save_prompt():
-    data = request.get_json(silent=True) or {}
-    prompts = load_prompts()
-
-    prompt_id = data.get("id") or str(uuid.uuid4())[:8]
-    name = data.get("name", "Sans nom")
-    prompt_text = data.get("prompt", "")
-
-    # Mettre à jour si existe, sinon ajouter
-    found = False
-    for p in prompts:
-        if p["id"] == prompt_id:
-            p["name"] = name
-            p["prompt"] = prompt_text
-            found = True
-            break
-
-    if not found:
-        prompts.append({"id": prompt_id, "name": name, "prompt": prompt_text})
-
-    save_prompts(prompts)
-    return jsonify({"ok": True, "id": prompt_id})
-
-
-@app.route("/api/prompts/<prompt_id>", methods=["DELETE"])
-def api_delete_prompt(prompt_id):
-    prompts = load_prompts()
-    prompts = [p for p in prompts if p["id"] != prompt_id]
-    save_prompts(prompts)
-    return jsonify({"ok": True})
-
-
-# ── Projets ──
-
-@app.route("/api/projects", methods=["GET"])
-def api_list_projects():
-    projects = load_projects()
-    result = []
-    for pid, proj in sorted(projects.items(), key=lambda x: x[1].get("created_at", ""), reverse=True):
-        result.append({"id": pid, **proj})
-    return jsonify(result)
-
-
-@app.route("/api/projects", methods=["POST"])
-def api_create_project():
-    data = request.get_json(silent=True) or {}
-    project_id = str(uuid.uuid4())[:8]
-    now = datetime.now().isoformat()
-    project = {
-        "name": data.get("name", "Nouveau projet"),
-        "description": data.get("description", ""),
-        "files": [],
-        "created_at": now,
-        "updated_at": now,
+        "uploaded_at": datetime.now().isoformat(),
+        "text_preview": text[:200] + "..." if len(text) > 200 else text,
     }
-    save_project(project_id, project)
-    return jsonify({"id": project_id, **project}), 201
 
+    return jsonify(file_info)
 
-@app.route("/api/projects/<project_id>", methods=["GET"])
-def api_get_project(project_id):
-    proj = get_project(project_id)
-    if not proj:
-        return jsonify({"error": "Projet introuvable"}), 404
-    return jsonify({"id": project_id, **proj})
-
-
-@app.route("/api/projects/<project_id>", methods=["PUT"])
-def api_update_project(project_id):
-    proj = get_project(project_id)
-    if not proj:
-        return jsonify({"error": "Projet introuvable"}), 404
-    data = request.get_json(silent=True) or {}
-    if "name" in data:
-        proj["name"] = data["name"]
-    if "description" in data:
-        proj["description"] = data["description"]
-    proj["updated_at"] = datetime.now().isoformat()
-    save_project(project_id, proj)
-    return jsonify({"id": project_id, **proj})
-
-
-@app.route("/api/projects/<project_id>", methods=["DELETE"])
-def api_delete_project(project_id):
-    # Détacher les conversations du projet (ne pas les supprimer)
-    convs = load_conversations()
-    for cid, conv in convs.items():
-        if conv.get("project_id") == project_id:
-            conv["project_id"] = None
-    save_conversations(convs)
-    delete_project(project_id)
-    return jsonify({"ok": True})
-
-
+# Route spécifique pour lier un fichier uploadé à un projet (si appelé depuis api_project_upload)
 @app.route("/api/projects/<project_id>/upload", methods=["POST"])
 def api_project_upload(project_id):
     proj = get_project(project_id)
     if not proj:
         return jsonify({"error": "Projet introuvable"}), 404
 
+    # On réutilise la logique d'upload standard mais on lie au projet
     if "file" not in request.files:
         return jsonify({"error": "Aucun fichier envoyé"}), 400
-
+        
     f = request.files["file"]
     if not f.filename:
         return jsonify({"error": "Nom de fichier vide"}), 400
@@ -754,6 +661,10 @@ def api_project_upload(project_id):
     f.save(str(filepath))
 
     text = extract_text_from_file(str(filepath))
+    
+    # Sauvegarder le texte complet pour le RAG / Contexte
+    txt_path = filepath.with_suffix(filepath.suffix + ".txt")
+    txt_path.write_text(text, encoding="utf-8")
 
     file_info = {
         "filename": f.filename,
@@ -780,10 +691,14 @@ def api_project_delete_file(project_id, saved_as):
     proj["updated_at"] = datetime.now().isoformat()
     save_project(project_id, proj)
 
-    # Supprimer le fichier physique
+    # Supprimer le fichier physique et son .txt
     filepath = UPLOADS_DIR / saved_as
     if filepath.exists():
         filepath.unlink()
+    
+    txt_path = UPLOADS_DIR / (saved_as + ".txt")
+    if txt_path.exists():
+        txt_path.unlink()
 
     return jsonify({"ok": True})
 
