@@ -14,14 +14,6 @@ import boto3
 from flask import Flask, render_template, request, jsonify
 import journal
 
-# Gestion d'erreur si APScheduler n'est pas installé
-try:
-    from apscheduler.schedulers.background import BackgroundScheduler
-    HAS_SCHEDULER = True
-except ImportError:
-    HAS_SCHEDULER = False
-    print("[WARNING] APScheduler non trouvé. Le journal automatique ne fonctionnera pas.")
-
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 Mo max upload pour vidéo
 
@@ -797,35 +789,5 @@ def api_save_settings():
 
 # ═════════════════════════════════════════════
 
-def start_scheduler():
-    # Désactivé temporairement pour éviter le crash 502
-    return
-    
-    # if not HAS_SCHEDULER:
-    #     return
-
-    # try:
-    #     scheduler = BackgroundScheduler()
-        
-    #     context = {
-    #         'get_project': get_project,
-    #         'load_conversations': load_conversations,
-    #         'call_claude': call_claude,
-    #         'save_project': save_project,
-    #         'UPLOADS_DIR': UPLOADS_DIR,
-    #         'load_projects': load_projects
-    #     }
-        
-    #     # Job quotidien à 23h00
-    #     scheduler.add_job(func=journal.run_daily_journals, trigger="cron", hour=23, minute=0, args=[context])
-    #     scheduler.start()
-    #     print("[INFO] Scheduler démarré pour le journal quotidien.")
-    # except Exception as e:
-    #     print(f"[ERROR] Impossible de démarrer le scheduler : {e}")
-
 if __name__ == "__main__":
-    # Démarrer le scheduler uniquement en mode dev local
-    # if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-    #     start_scheduler()
-        
     app.run(debug=True, port=8009)
