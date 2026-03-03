@@ -328,8 +328,15 @@ def call_pegasus_video(filepath):
         response = bedrock.invoke_model(modelId=model_id, body=body)
 
         result = json.loads(response["body"].read())
-        return result.get("output", result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}"))
+        text = result.get("output", result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}"))
 
+        # Nettoyage S3 après analyse
+        try:
+            s3.delete_object(Bucket=s3_bucket, Key=s3_key)
+        except Exception:
+            pass
+
+        return text
 
     except Exception as e:
         return f"[Erreur Analyse Vidéo : {str(e)}]"
