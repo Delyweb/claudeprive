@@ -284,17 +284,48 @@ def save_settings(settings):
 # Extraction de texte (fichiers uploadés)
 # ─────────────────────────────────────────────
 
+def call_pegasus_video(filepath):
+    """Appelle Twelve Labs Pegasus via S3 pour transcrire une vidéo."""
+    s3_bucket = os.environ.get("S3_VIDEO_BUCKET")
+    if not s3_bucket:
+        return "[INFO] Vidéo stockée. Pour l'analyse IA (transcription), veuillez configurer la variable S3_VIDEO_BUCKET dans docker-compose.yml (voir GUIDE_S3.md)."
+
+    try:
+        filename = Path(filepath).name
+        s3_key = f"uploads/{uuid.uuid4().hex[:8]}/{filename}"
+        s3_uri = f"s3://{s3_bucket}/{s3_key}"
+        
+        # 1. Upload vers S3
+        s3 = boto3.client("s3")
+        s3.upload_file(filepath, s3_bucket, s3_key)
+        
+        # 2. Appel Pegasus (Twelve Labs) via Bedrock
+        # Note: L'ID exact dépend de l'abonnement marketplace, on tente le générique ou on laisse l'utilisateur configurer
+        model_id = "twelvelabs.pegasus-1-2-v1:0" # ID standard Marketplace
+        
+        prompt = "Génère une transcription détaillée (diarisation) et un résumé exécutif de cette réunion."
+        
+        body = json.dumps({
+            "prompt": prompt,
+            "videoS3Uri": s3_uri
+        })
+        
+        bedrock = get_bedrock_client("us.anthropic.claude") # On utilise le client US par défaut pour Pegasus qui est souvent US
+        response = bedrock.invoke_model(modelId=model_id, body=body)
+        
+        result = json.loads(response["body"].read())
+        # Le format de réponse dépend de Pegasus, on extrait le texte générique
+        return result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}")
+
+    except Exception as e:
+        return f"[Erreur Analyse Vidéo : {str(e)}]"
+
 def extract_text_from_file(filepath):
     """Extrait le texte d'un fichier uploadé."""
     ext = Path(filepath).suffix.lower()
-
+    
     if ext in (".mp4", ".mov", ".avi", ".mkv", ".webm"):
-        # Note: Pour une implémentation complète de Twelve Labs Pegasus,
-        # il faudrait uploader la vidéo sur un bucket S3 configuré,
-        # puis appeler l'API Bedrock avec l'URI S3.
-        # En l'absence de configuration S3 automatique, nous ne pouvons pas
-        # traiter la vidéo directement ici sans risque d'erreur.
-        return "[INFO] Vidéo reçue. Pour l'analyse complète (transcription + résumé) via Pegasus, une configuration S3 est nécessaire. Veuillez contacter l'administrateur pour configurer le bucket d'ingestion."
+        return call_pegasus_video(filepath)
 
     if ext == ".pdf":
         try:
@@ -333,6 +364,56 @@ def extract_text_from_file(filepath):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+# ── Recherche ──
+
+@app.route("/api/search", methods=["GET"])
+def api_search():
+    query = request.args.get("q", "").lower().strip()
+    if not query or len(query) < 3:
+        return jsonify([])
+
+    convs = load_conversations()
+    results = []
+    
+    for conv_id, conv in convs.items():
+        title = conv.get("title", "Sans titre")
+        found = False
+        
+        # Chercher dans le titre
+        if query in title.lower():
+            results.append({
+                "conversation_id": conv_id,
+                "title": title,
+                "snippet": "[Titre correspondant]",
+                "date": conv.get("updated_at")
+            })
+            continue
+
+        # Chercher dans les messages
+        for msg in conv.get("messages", []):
+            content = msg.get("content", "")
+            if query in content.lower():
+                # Extraire un extrait
+                idx = content.lower().find(query)
+                start = max(0, idx - 60)
+                end = min(len(content), idx + 140)
+                snippet = "..." + content[start:end].replace("\n", " ") + "..."
+                
+                results.append({
+                    "conversation_id": conv_id,
+                    "title": title,
+                    "snippet": snippet,
+                    "date": conv.get("updated_at")
+                })
+                found = True
+                break # Un seul résultat par conversation pour ne pas spammer
+        
+        if len(results) >= 20: # Limite de résultats
+            break
+            
+    return jsonify(results)
 
 
 # ── Conversations ──

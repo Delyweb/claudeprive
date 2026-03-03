@@ -93,6 +93,39 @@
             margin-bottom: 8px;
         }
 
+        /* Search Box */
+        .search-box input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+        .search-box input:focus { outline: none; border-color: var(--accent); }
+        .search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.75rem;
+        }
+        .search-result-item {
+            padding: 6px 8px;
+            background: var(--bg-tertiary);
+            margin-bottom: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-result-item:hover { background: var(--bg-hover); }
+        .search-snippet {
+            color: var(--text-secondary);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         /* Costs display */
         .costs-display {
             display: flex;
@@ -702,10 +735,19 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">CP</div>
-        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.2</span></h1>
+        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.3</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
+
+    <!-- Recherche -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">Recherche (Mémoire)</div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Chercher dans l'historique..." onkeydown="handleSearch(event)">
+        </div>
+        <div id="searchResults" class="search-results"></div>
+    </div>
 
     <!-- Coûts -->
     <div class="sidebar-section">
@@ -949,6 +991,38 @@ async function api(url, method = 'GET', body = null) {
     }
     const res = await fetch(url, opts);
     return res.json();
+}
+
+// ═══════════════════════════════════════
+// Search
+// ═══════════════════════════════════════
+let searchTimeout;
+async function handleSearch(e) {
+    if (e.key === 'Enter') {
+        const query = e.target.value.trim();
+        if (!query) {
+            document.getElementById('searchResults').innerHTML = '';
+            return;
+        }
+        
+        const results = await api(`/api/search?q=${encodeURIComponent(query)}`);
+        renderSearchResults(results);
+    }
+}
+
+function renderSearchResults(results) {
+    const container = document.getElementById('searchResults');
+    if (results.length === 0) {
+        container.innerHTML = '<div style="padding:8px;color:var(--text-muted);">Aucun résultat</div>';
+        return;
+    }
+    
+    container.innerHTML = results.map(r => `
+        <div class="search-result-item" onclick="selectConversation('${r.conversation_id}')">
+            <div style="font-weight:600;">${escapeHtml(r.title)}</div>
+            <div class="search-snippet">${escapeHtml(r.snippet)}</div>
+        </div>
+    `).join('');
 }
 
 // ═══════════════════════════════════════
