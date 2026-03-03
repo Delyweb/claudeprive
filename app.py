@@ -7,6 +7,7 @@ import os
 import json
 import uuid
 import time
+import threading
 from datetime import datetime, date
 from pathlib import Path
 
@@ -821,26 +822,51 @@ def api_project_upload(project_id):
     filepath = UPLOADS_DIR / safe_name
     f.save(str(filepath))
 
-    text = extract_text_from_file(str(filepath))
-
-    # Sauvegarder le texte complet pour le RAG / Contexte
-    # Note: Path.with_suffix() interdit les suffixes multi-points en Python 3.12
-    txt_path = Path(str(filepath) + ".txt")
-    txt_path.write_text(text, encoding="utf-8")
+    VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    is_video = ext in VIDEO_EXTS
 
     file_info = {
         "filename": f.filename,
         "saved_as": safe_name,
         "size": os.path.getsize(str(filepath)),
         "uploaded_at": datetime.now().isoformat(),
-        "text_preview": text[:200] + "..." if len(text) > 200 else text,
+        "status": "processing" if is_video else "ready",
+        "text_preview": "",
     }
 
     proj["files"].append(file_info)
     proj["updated_at"] = datetime.now().isoformat()
     save_project(project_id, proj)
 
-    return jsonify({**file_info, "text": text})
+    if is_video:
+        # Traitement Pegasus en arrière-plan — on répond immédiatement
+        def process_video_bg(pid, sname, fpath):
+            text = extract_text_from_file(fpath)
+            txt_path = Path(str(fpath) + ".txt")
+            txt_path.write_text(text, encoding="utf-8")
+            p = get_project(pid)
+            if p:
+                for fi in p.get("files", []):
+                    if fi["saved_as"] == sname:
+                        fi["status"] = "ready"
+                        fi["text_preview"] = text[:200] + "..." if len(text) > 200 else text
+                        break
+                save_project(pid, p)
+
+        threading.Thread(target=process_video_bg, args=(project_id, safe_name, str(filepath)), daemon=True).start()
+        return jsonify({**file_info})
+    else:
+        text = extract_text_from_file(str(filepath))
+        txt_path = Path(str(filepath) + ".txt")
+        txt_path.write_text(text, encoding="utf-8")
+        file_info["text_preview"] = text[:200] + "..." if len(text) > 200 else text
+        # Mettre à jour le fichier avec la preview
+        for fi in proj["files"]:
+            if fi["saved_as"] == safe_name:
+                fi["text_preview"] = file_info["text_preview"]
+                break
+        save_project(project_id, proj)
+        return jsonify({**file_info, "text": text})
 
 
 @app.route("/api/projects/<project_id>/files/<saved_as>", methods=["DELETE"])

@@ -1652,6 +1652,8 @@ function closeProjectPage() {
     document.querySelector('.chat-area').style.display = '';
 }
 
+let _videoPollingInterval = null;
+
 function renderProjectPageFiles(files) {
     document.getElementById('ppFilesTitle').textContent = `Fichiers (${files.length})`;
     document.getElementById('projectFilesCount').textContent = files.length;
@@ -1667,6 +1669,17 @@ function renderProjectPageFiles(files) {
         const size = f.size > 1048576 ? (f.size/1048576).toFixed(1)+' Mo' : Math.round(f.size/1024)+' Ko';
         const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('fr-FR') : '';
         const preview = f.text_preview ? escapeHtml(f.text_preview) : '';
+        if (f.status === 'processing') {
+            return `
+            <div class="pp-file-item" data-saved-as="${f.saved_as}">
+                <span class="pp-file-icon">⏳</span>
+                <div class="pp-file-info">
+                    <div class="pp-file-name">${escapeHtml(f.filename)}</div>
+                    <div class="pp-file-meta" style="color:var(--accent)">${size} · Analyse vidéo en cours...</div>
+                </div>
+                <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
+            </div>`;
+        }
         return `
             <div class="pp-file-item">
                 <span class="pp-file-icon">${icon}</span>
@@ -1678,6 +1691,37 @@ function renderProjectPageFiles(files) {
                 <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
             </div>`;
     }).join('');
+
+    // Lancer le polling si des vidéos sont en cours d'analyse
+    const hasProcessing = files.some(f => f.status === 'processing');
+    if (hasProcessing && !_videoPollingInterval) {
+        _videoPollingInterval = setInterval(pollVideoStatus, 5000);
+    } else if (!hasProcessing && _videoPollingInterval) {
+        clearInterval(_videoPollingInterval);
+        _videoPollingInterval = null;
+    }
+}
+
+async function pollVideoStatus() {
+    if (!currentProjectId) return;
+    const proj = await api(`/api/projects/${currentProjectId}`);
+    const files = proj.files || [];
+    const stillProcessing = files.some(f => f.status === 'processing');
+    if (!stillProcessing) {
+        clearInterval(_videoPollingInterval);
+        _videoPollingInterval = null;
+        // Notifier l'utilisateur
+        const notif = document.createElement('div');
+        notif.textContent = '✅ Analyse vidéo terminée — fichier prêt dans le projet';
+        notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--accent);color:#fff;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;';
+        document.body.appendChild(notif);
+        setTimeout(() => notif.remove(), 4000);
+    }
+    // Mettre à jour la liste si la page projet est visible
+    if (document.getElementById('projectPage').classList.contains('visible')) {
+        renderProjectPageFiles(files);
+    }
+    document.getElementById('projectFilesCount').textContent = files.length;
 }
 
 function ppHandleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
@@ -1770,6 +1814,10 @@ async function handleProjectFileUpload(e) {
     const file = e.target.files[0];
     if (!file || !currentProjectId) return;
 
+    const VIDEO_EXTS = ['mp4','mov','avi','mkv','webm'];
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const isVideo = VIDEO_EXTS.includes(ext);
+
     const formData = new FormData();
     formData.append('file', file);
 
@@ -1781,6 +1829,19 @@ async function handleProjectFileUpload(e) {
         document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
         if (document.getElementById('projectPage').classList.contains('visible')) {
             renderProjectPageFiles(proj.files || []);
+        }
+        if (isVideo) {
+            // Revenir au chat et laisser l'analyse tourner en arrière-plan
+            closeProjectPage();
+            const notif = document.createElement('div');
+            notif.textContent = '⏳ Vidéo reçue — analyse en cours, vous serez notifié(e) quand c\'est prêt';
+            notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#555;color:#fff;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;';
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 5000);
+            // Démarrer le polling même si la page projet est fermée
+            if (!_videoPollingInterval) {
+                _videoPollingInterval = setInterval(pollVideoStatus, 5000);
+            }
         }
     } catch (err) {
         alert('Erreur upload : ' + err.message);
