@@ -257,9 +257,12 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 2px;
+            position: relative; /* Pour le menu contextuel */
         }
         .conv-item:hover { background: var(--bg-hover); }
         .conv-item.active { background: var(--accent-dim); }
+        .conv-item.dragging { opacity: 0.5; border: 1px dashed var(--accent); } /* Style during drag */
+        
         .conv-title {
             font-size: 0.85rem;
             white-space: nowrap;
@@ -267,7 +270,9 @@
             text-overflow: ellipsis;
             flex: 1;
         }
-        .conv-delete {
+        
+        /* Actions button (3 dots) */
+        .conv-actions-btn {
             display: none;
             background: none;
             border: none;
@@ -275,10 +280,43 @@
             cursor: pointer;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.8rem;
+            font-size: 1rem;
+            line-height: 1;
+            margin-left: 4px;
         }
-        .conv-item:hover .conv-delete { display: block; }
-        .conv-delete:hover { color: var(--danger); background: rgba(231,76,111,0.15); }
+        .conv-item:hover .conv-actions-btn { display: block; }
+        .conv-actions-btn:hover { color: var(--text-primary); background: rgba(255,255,255,0.1); }
+
+        /* Context Menu */
+        .context-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            min-width: 140px;
+            padding: 4px 0;
+        }
+        .context-menu.visible { display: block; }
+        .context-menu-item {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .context-menu-item:hover { background: var(--bg-hover); }
+        .context-menu-item.danger { color: var(--danger); }
+
+        /* Project Drag Target Style */
+        .project-item.drag-over, .no-project-btn.drag-over {
+            background: var(--accent-dim);
+            border: 1px dashed var(--accent);
+        }
 
         /* Settings link */
         .sidebar-footer {
@@ -664,7 +702,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">CP</div>
-        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.1 (2026)</span></h1>
+        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.2</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
@@ -704,7 +742,14 @@
             Projets
             <button class="prompt-btn-sm" style="flex:none; padding:3px 8px;" onclick="openProjectModal(true)">+</button>
         </div>
-        <div class="no-project-btn active" id="noProjectBtn" onclick="selectProject(null)">Hors projet</div>
+        <!-- Drop target for moving conversations out of projects -->
+        <div class="no-project-btn active" id="noProjectBtn" 
+             onclick="selectProject(null)"
+             ondragover="handleDragOver(event)" 
+             ondragleave="handleDragLeave(event)" 
+             ondrop="handleDrop(event, null)">
+             Hors projet
+        </div>
         <div id="projectsList"></div>
     </div>
 
@@ -795,7 +840,6 @@
         <select id="settingsRegion">
             <option value="eu-west-3">Europe (Paris) — eu-west-3</option>
             <option value="eu-west-1">Europe (Irlande) — eu-west-1</option>
-            <option value="us-east-1">US East (Virginie) — us-east-1</option>
         </select>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeModal('settingsModal')">Annuler</button>
@@ -838,12 +882,35 @@
     </div>
 </div>
 
+<!-- ═══ Context Menu ═══ -->
+<div id="contextMenu" class="context-menu">
+    <div class="context-menu-item" onclick="renameConvContext()">Renommer</div>
+    <div class="context-menu-item" onclick="openMoveModal()">Déplacer vers...</div>
+    <div class="context-menu-item danger" onclick="deleteConvContext()">Supprimer</div>
+</div>
+
+<!-- ═══ Move to Project Modal ═══ -->
+<div class="modal-overlay" id="moveModal">
+    <div class="modal" style="width: 350px;">
+        <h3>Déplacer la conversation</h3>
+        <label>Sélectionner un projet</label>
+        <select id="moveProjectSelect">
+            <option value="">(Hors projet)</option>
+        </select>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('moveModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="moveConversation()">Déplacer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════
 // State
 // ═══════════════════════════════════════
 let conversations = [];
 let currentConvId = null;
+let contextConvId = null; // ID de la conv pour le menu contextuel
 let prompts = [];
 let settings = {};
 let attachedFile = null; // { filename, text }
@@ -861,6 +928,13 @@ async function init() {
         loadSettings(),
         loadCosts(),
     ]);
+    
+    // Close context menu on click elsewhere
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.conv-actions-btn') && !e.target.closest('.context-menu')) {
+            document.getElementById('contextMenu').classList.remove('visible');
+        }
+    });
 }
 init();
 
@@ -891,9 +965,13 @@ async function loadConversations() {
 function renderConversations() {
     const list = document.getElementById('conversationsList');
     list.innerHTML = conversations.map(c => `
-        <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" onclick="selectConversation('${c.id}')">
+        <div class="conv-item ${c.id === currentConvId ? 'active' : ''}" 
+             onclick="selectConversation('${c.id}')"
+             draggable="true"
+             ondragstart="handleDragStart(event, '${c.id}')"
+             data-id="${c.id}">
             <span class="conv-title">${escapeHtml(c.title)}</span>
-            <button class="conv-delete" onclick="event.stopPropagation(); deleteConversation('${c.id}')" title="Supprimer">✕</button>
+            <button class="conv-actions-btn" onclick="showContextMenu(event, '${c.id}')">⋮</button>
         </div>
     `).join('');
 }
@@ -939,6 +1017,88 @@ async function deleteConversation(id) {
         document.getElementById('chatTitle').textContent = 'ClaudePrivé';
     }
     await loadConversations();
+}
+
+// ═══════════════════════════════════════
+// Context Menu & Move
+// ═══════════════════════════════════════
+function showContextMenu(e, id) {
+    e.stopPropagation();
+    contextConvId = id;
+    const menu = document.getElementById('contextMenu');
+    
+    // Position menu relative to the button
+    const rect = e.target.getBoundingClientRect();
+    menu.style.top = (rect.bottom + window.scrollY) + 'px';
+    menu.style.left = (rect.left + window.scrollX - 100) + 'px'; // Shift left a bit
+    
+    menu.classList.add('visible');
+}
+
+function renameConvContext() {
+    if (!contextConvId) return;
+    document.getElementById('contextMenu').classList.remove('visible');
+    const newTitle = prompt('Nouveau titre :');
+    if (newTitle) {
+        api(`/api/conversations/${contextConvId}/title`, 'PUT', { title: newTitle }).then(() => {
+            loadConversations();
+            if (currentConvId === contextConvId) document.getElementById('chatTitle').textContent = newTitle;
+        });
+    }
+}
+
+function deleteConvContext() {
+    if (!contextConvId) return;
+    document.getElementById('contextMenu').classList.remove('visible');
+    deleteConversation(contextConvId);
+}
+
+function openMoveModal() {
+    document.getElementById('contextMenu').classList.remove('visible');
+    const select = document.getElementById('moveProjectSelect');
+    select.innerHTML = '<option value="">(Hors projet)</option>' + projects.map(p => 
+        `<option value="${p.id}">${escapeHtml(p.name)}</option>`
+    ).join('');
+    
+    openModal('moveModal');
+}
+
+async function moveConversation() {
+    const projectId = document.getElementById('moveProjectSelect').value || null;
+    await api(`/api/conversations/${contextConvId}/project`, 'PUT', { project_id: projectId });
+    closeModal('moveModal');
+    loadConversations(); // Refresh list (it might disappear if filtered by project)
+}
+
+// ═══════════════════════════════════════
+// Drag and Drop
+// ═══════════════════════════════════════
+function handleDragStart(e, id) {
+    e.dataTransfer.setData('text/plain', id);
+    e.target.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleDrop(e, projectId) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    const convId = e.dataTransfer.getData('text/plain');
+    
+    // Find dragging element to remove class
+    document.querySelector('.conv-item.dragging')?.classList.remove('dragging');
+    
+    if (convId) {
+        await api(`/api/conversations/${convId}/project`, 'PUT', { project_id: projectId });
+        loadConversations();
+    }
 }
 
 // ═══════════════════════════════════════
@@ -1183,7 +1343,11 @@ async function loadProjects() {
 function renderProjects() {
     const list = document.getElementById('projectsList');
     list.innerHTML = projects.map(p => `
-        <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" onclick="selectProject('${p.id}')">
+        <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" 
+             onclick="selectProject('${p.id}')"
+             ondragover="handleDragOver(event)" 
+             ondragleave="handleDragLeave(event)" 
+             ondrop="handleDrop(event, '${p.id}')">
             <span class="project-name">${escapeHtml(p.name)}</span>
             <span class="project-badge">${(p.files || []).length} fichier${(p.files || []).length !== 1 ? 's' : ''}</span>
         </div>

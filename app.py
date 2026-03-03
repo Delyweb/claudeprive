@@ -212,7 +212,7 @@ DEFAULT_PROMPTS = [
     {
         "id": "general",
         "name": "Conseil général",
-        "prompt": "Tu es un assistant business polyvalent. Tu aides avec des conseils professionnels clairs, structurés et actionnables. Tu t'exprimes en français."
+        "prompt": "Tu es un assistant business polyvalent. Tu es une instance privée et sécurisée de Claude, hébergée en Europe via AWS Bedrock. Les données de l'utilisateur sont confidentielles et restent en Europe. Tu aides avec des conseils professionnels clairs, structurés et actionnables. Tu t'exprimes en français."
     },
     {
         "id": "juridique",
@@ -383,6 +383,25 @@ def api_rename_conversation(conv_id):
         return jsonify({"error": "Conversation introuvable"}), 404
     data = request.get_json(silent=True) or {}
     conv["title"] = data.get("title", conv["title"])
+    conv["updated_at"] = datetime.now().isoformat()
+    save_conversation(conv_id, conv)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/conversations/<conv_id>/project", methods=["PUT"])
+def api_move_conversation(conv_id):
+    conv = get_conversation(conv_id)
+    if not conv:
+        return jsonify({"error": "Conversation introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    
+    # project_id peut être None (pour sortir d'un projet)
+    project_id = data.get("project_id")
+    
+    if project_id and not get_project(project_id):
+        return jsonify({"error": "Projet introuvable"}), 404
+
+    conv["project_id"] = project_id
     conv["updated_at"] = datetime.now().isoformat()
     save_conversation(conv_id, conv)
     return jsonify({"ok": True})
