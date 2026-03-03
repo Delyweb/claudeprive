@@ -298,20 +298,26 @@ def save_settings(settings):
 # Extraction de texte (fichiers uploadés)
 # ─────────────────────────────────────────────
 
-def call_pegasus_video(filepath):
-    """Appelle Twelve Labs Pegasus via S3 pour transcrire une vidéo."""
+def call_pegasus_video(filepath, existing_s3_uri=None, existing_s3_key=None):
+    """Appelle Twelve Labs Pegasus via S3 pour transcrire une vidéo.
+    Si existing_s3_uri est fourni, on saute l'upload S3 (déjà fait par le browser)."""
     s3_bucket = os.environ.get("S3_VIDEO_BUCKET")
     if not s3_bucket:
         return "[INFO] Vidéo stockée. Pour l'analyse IA (transcription), veuillez configurer la variable S3_VIDEO_BUCKET dans docker-compose.yml (voir GUIDE_S3.md)."
 
     try:
-        filename = Path(filepath).name
-        s3_key = f"uploads/{uuid.uuid4().hex[:8]}/{filename}"
-        s3_uri = f"s3://{s3_bucket}/{s3_key}"
-        
-        # 1. Upload vers S3
         s3 = boto3.client("s3")
-        s3.upload_file(filepath, s3_bucket, s3_key)
+
+        if existing_s3_uri:
+            # Upload déjà fait par le browser via URL pré-signée
+            s3_uri = existing_s3_uri
+            s3_key = existing_s3_key
+        else:
+            filename = Path(filepath).name
+            s3_key = f"uploads/{uuid.uuid4().hex[:8]}/{filename}"
+            s3_uri = f"s3://{s3_bucket}/{s3_key}"
+            # 1. Upload vers S3
+            s3.upload_file(filepath, s3_bucket, s3_key)
         
         # 2. Récupérer le compte AWS pour bucketOwner (requis par Pegasus)
         account_id = boto3.client("sts").get_caller_identity()["Account"]
@@ -881,6 +887,85 @@ def api_project_upload(project_id):
                 break
         save_project(project_id, proj)
         return jsonify({**file_info, "text": text})
+
+
+@app.route("/api/projects/<project_id>/upload-url", methods=["GET"])
+def api_project_upload_url(project_id):
+    """Génère une URL S3 pré-signée pour upload direct depuis le browser."""
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    s3_bucket = os.environ.get("S3_VIDEO_BUCKET")
+    if not s3_bucket:
+        return jsonify({"error": "S3_VIDEO_BUCKET non configuré"}), 500
+    filename = request.args.get("filename", "video.mp4")
+    ext = Path(filename).suffix.lower()
+    safe_name = f"{uuid.uuid4().hex[:8]}_{Path(filename).name}"
+    s3_key = f"uploads/{safe_name}"
+    s3 = boto3.client("s3")
+    # Configurer CORS sur le bucket pour autoriser le PUT direct depuis le browser
+    try:
+        s3.put_bucket_cors(Bucket=s3_bucket, CORSConfiguration={"CORSRules": [{
+            "AllowedHeaders": ["*"],
+            "AllowedMethods": ["PUT"],
+            "AllowedOrigins": ["*"],
+            "ExposeHeaders": []
+        }]})
+    except Exception:
+        pass
+    upload_url = s3.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": s3_bucket, "Key": s3_key, "ContentType": "video/mp4"},
+        ExpiresIn=7200
+    )
+    return jsonify({"upload_url": upload_url, "s3_key": s3_key, "safe_name": safe_name, "filename": filename})
+
+
+@app.route("/api/projects/<project_id>/upload-complete", methods=["POST"])
+def api_project_upload_complete(project_id):
+    """Notifie que l'upload S3 direct est terminé, lance l'analyse Pegasus."""
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    s3_key = data.get("s3_key", "")
+    safe_name = data.get("safe_name", "")
+    filename = data.get("filename", "")
+    size = data.get("size", 0)
+    s3_bucket = os.environ.get("S3_VIDEO_BUCKET")
+    s3_uri = f"s3://{s3_bucket}/{s3_key}"
+
+    # Créer un fichier local vide (placeholder pour le RAG, rempli après Pegasus)
+    filepath = UPLOADS_DIR / safe_name
+    filepath.touch()
+
+    file_info = {
+        "filename": filename,
+        "saved_as": safe_name,
+        "size": size,
+        "uploaded_at": datetime.now().isoformat(),
+        "status": "processing",
+        "text_preview": "",
+    }
+    proj["files"].append(file_info)
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj)
+
+    def process_video_bg(pid, sname, fpath, uri, key):
+        text = call_pegasus_video(fpath, existing_s3_uri=uri, existing_s3_key=key)
+        txt_path = Path(str(fpath) + ".txt")
+        txt_path.write_text(text, encoding="utf-8")
+        p = get_project(pid)
+        if p:
+            for fi in p.get("files", []):
+                if fi["saved_as"] == sname:
+                    fi["status"] = "ready"
+                    fi["text_preview"] = text[:200] + "..." if len(text) > 200 else text
+                    break
+            save_project(pid, p)
+
+    threading.Thread(target=process_video_bg, args=(project_id, safe_name, str(filepath), s3_uri, s3_key), daemon=True).start()
+    return jsonify({**file_info})
 
 
 @app.route("/api/projects/<project_id>/files/<saved_as>", methods=["DELETE"])
