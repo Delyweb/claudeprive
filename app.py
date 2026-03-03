@@ -313,22 +313,29 @@ def call_pegasus_video(filepath):
         s3 = boto3.client("s3")
         s3.upload_file(filepath, s3_bucket, s3_key)
         
-        # 2. Appel Pegasus (Twelve Labs) via Bedrock
-        # Note: L'ID exact dépend de l'abonnement marketplace, on tente le générique ou on laisse l'utilisateur configurer
-        model_id = "twelvelabs.pegasus-1-2-v1:0" # ID standard Marketplace
-        
+        # 2. Récupérer le compte AWS pour bucketOwner (requis par Pegasus)
+        account_id = boto3.client("sts").get_caller_identity()["Account"]
+
+        # 3. Appel Pegasus (Twelve Labs) via Bedrock
+        model_id = "twelvelabs.pegasus-1-2-v1:0"
         prompt = "Génère une transcription détaillée (diarisation) et un résumé exécutif de cette réunion."
-        
+
         body = json.dumps({
-            "prompt": prompt,
-            "videoS3Uri": s3_uri
+            "inputPrompt": prompt,
+            "mediaSource": {
+                "s3Location": {
+                    "uri": s3_uri,
+                    "bucketOwner": account_id
+                }
+            },
+            "maxOutputTokens": 4096
         })
 
         bedrock = get_bedrock_client()  # Région par défaut (eu-west-3) où Pegasus est souscrit
         response = bedrock.invoke_model(modelId=model_id, body=body)
 
         result = json.loads(response["body"].read())
-        text = result.get("output", result.get("generated_text", f"[Réponse Pegasus brute] {json.dumps(result)}"))
+        text = result.get("message", f"[Réponse Pegasus brute] {json.dumps(result)}")
 
         # Nettoyage S3 après analyse
         try:
