@@ -545,7 +545,7 @@ def api_chat():
     if project_id:
         proj = get_project(project_id)
         if proj and proj.get("files"):
-            project_context = "\n\n--- DOCUMENTS DU PROJET ---\n"
+            project_context = "\n\n--- DOCUMENTS DU PROJET (CONTEXTE RAG) ---\n"
             has_docs = False
             for file in proj["files"]:
                 saved_as = file.get("saved_as")
@@ -555,17 +555,27 @@ def api_chat():
                     if txt_path.exists():
                         try:
                             content = txt_path.read_text(encoding="utf-8")
+                            # Log pour debug
+                            print(f"[DEBUG] Injection du document {file['filename']} ({len(content)} chars)")
+                            
                             # Limiter la taille pour ne pas exploser le contexte (ex: 50k caractères par fichier)
                             if len(content) > 50000:
                                 content = content[:50000] + "\n...[Tronqué]..."
                             project_context += f"\n[Document: {file['filename']}]\n{content}\n"
                             has_docs = True
                         except Exception as e:
-                            print(f"Erreur lecture contexte {saved_as}: {e}")
+                            print(f"[ERREUR] Erreur lecture contexte {saved_as}: {e}")
+                    else:
+                        print(f"[DEBUG] Fichier texte manquant pour {file['filename']} ({saved_as}.txt)")
             
             if has_docs:
                 final_system_prompt += project_context
-                final_system_prompt += "\n\nUtilise ces documents pour répondre aux questions sur le projet."
+                final_system_prompt += "\n\nINSTRUCTIONS: Utilise EXCLUSIVEMENT les documents ci-dessus pour répondre aux questions sur le projet. Si la réponse n'y est pas, dis-le clairement."
+            else:
+                print("[DEBUG] Aucun document texte trouvé pour ce projet.")
+
+    # Log du prompt système final (pour debug serveur)
+    print(f"[DEBUG] System Prompt Size: {len(final_system_prompt)} chars")
 
     # Appel Bedrock
     try:
@@ -604,6 +614,29 @@ def api_chat():
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md", ".csv", ".json", ".xml", ".html",
                       ".py", ".js", ".yml", ".yaml", ".png", ".jpg", ".jpeg", ".gif", ".webp",
                       ".mp4", ".mov", ".avi", ".mkv", ".webm"}
+
+@app.route("/api/debug/context/<project_id>", methods=["GET"])
+def api_debug_context(project_id):
+    """Affiche le contexte qui serait envoyé à Claude pour ce projet."""
+    proj = get_project(project_id)
+    if not proj:
+        return "Projet introuvable"
+        
+    context = "--- SIMULATION CONTEXTE ---\n"
+    if proj.get("files"):
+        for file in proj["files"]:
+            saved_as = file.get("saved_as")
+            if saved_as:
+                txt_path = UPLOADS_DIR / (saved_as + ".txt")
+                if txt_path.exists():
+                    content = txt_path.read_text(encoding="utf-8")
+                    context += f"\n[Document: {file['filename']}] ({len(content)} chars)\n{content[:500]}...\n"
+                else:
+                    context += f"\n[Document: {file['filename']}] : PAS DE FICHIER TEXTE (.txt manquant)\n"
+    else:
+        context += "Aucun fichier dans ce projet."
+        
+    return f"<pre>{context}</pre>"
 
 @app.route("/api/upload", methods=["POST"])
 def api_upload():
