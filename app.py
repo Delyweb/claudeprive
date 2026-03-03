@@ -749,6 +749,130 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
+# ── Projets ──
+
+@app.route("/api/projects", methods=["GET"])
+def api_list_projects():
+    projects = load_projects()
+    result = []
+    for pid, proj in sorted(projects.items(), key=lambda x: x[1].get("created_at", ""), reverse=True):
+        result.append({"id": pid, **proj})
+    return jsonify(result)
+
+
+@app.route("/api/projects", methods=["POST"])
+def api_create_project():
+    data = request.get_json(silent=True) or {}
+    project_id = str(uuid.uuid4())[:8]
+    now = datetime.now().isoformat()
+    project = {
+        "name": data.get("name", "Nouveau projet"),
+        "description": data.get("description", ""),
+        "files": [],
+        "created_at": now,
+        "updated_at": now,
+    }
+    save_project(project_id, project)
+    return jsonify({"id": project_id, **project}), 201
+
+
+@app.route("/api/projects/<project_id>", methods=["GET"])
+def api_get_project_route(project_id):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    return jsonify({"id": project_id, **proj})
+
+
+@app.route("/api/projects/<project_id>", methods=["PUT"])
+def api_update_project(project_id):
+    proj = get_project(project_id)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    if "name" in data:
+        proj["name"] = data["name"]
+    if "description" in data:
+        proj["description"] = data["description"]
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj)
+    return jsonify({"id": project_id, **proj})
+
+
+@app.route("/api/projects/<project_id>", methods=["DELETE"])
+def api_delete_project_route(project_id):
+    convs = load_conversations()
+    for cid, conv in convs.items():
+        if conv.get("project_id") == project_id:
+            conv["project_id"] = None
+    save_conversations(convs)
+    delete_project(project_id)
+    return jsonify({"ok": True})
+
+
+# ── Coûts ──
+
+@app.route("/api/costs", methods=["GET"])
+def api_costs():
+    costs = load_costs()
+    today = date.today().isoformat()
+    month = today[:7]
+
+    daily_today = costs["daily"].get(today, {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0})
+
+    monthly = {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0}
+    for day_key, day_val in costs["daily"].items():
+        if day_key.startswith(month):
+            monthly["input_tokens"] += day_val["input_tokens"]
+            monthly["output_tokens"] += day_val["output_tokens"]
+            monthly["cost_usd"] = round(monthly["cost_usd"] + day_val["cost_usd"], 6)
+
+    return jsonify({
+        "today": daily_today,
+        "month": monthly,
+        "total": costs["total"],
+    })
+
+
+# ── Prompts ──
+
+@app.route("/api/prompts", methods=["GET"])
+def api_get_prompts():
+    return jsonify(load_prompts())
+
+
+@app.route("/api/prompts", methods=["POST"])
+def api_save_prompt():
+    data = request.get_json(silent=True) or {}
+    prompts = load_prompts()
+
+    prompt_id = data.get("id") or str(uuid.uuid4())[:8]
+    name = data.get("name", "Sans nom")
+    prompt_text = data.get("prompt", "")
+
+    found = False
+    for p in prompts:
+        if p["id"] == prompt_id:
+            p["name"] = name
+            p["prompt"] = prompt_text
+            found = True
+            break
+
+    if not found:
+        prompts.append({"id": prompt_id, "name": name, "prompt": prompt_text})
+
+    save_prompts(prompts)
+    return jsonify({"ok": True, "id": prompt_id})
+
+
+@app.route("/api/prompts/<prompt_id>", methods=["DELETE"])
+def api_delete_prompt(prompt_id):
+    prompts = load_prompts()
+    prompts = [p for p in prompts if p["id"] != prompt_id]
+    save_prompts(prompts)
+    return jsonify({"ok": True})
+
+
 # ── Réglages ──
 
 @app.route("/api/settings", methods=["GET"])
