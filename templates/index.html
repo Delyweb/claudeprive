@@ -664,7 +664,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">CP</div>
-        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v1.4</span></h1>
+        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.0</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
@@ -747,8 +747,8 @@
     <div class="messages" id="messagesContainer">
         <div class="welcome" id="welcomeScreen">
             <div class="welcome-icon">CP</div>
-            <h2>Bienvenue sur ClaudePrivé</h2>
-            <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+            <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
+            <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
         </div>
     </div>
 
@@ -778,17 +778,14 @@
 <div class="modal-overlay" id="settingsModal">
     <div class="modal">
         <h3>Réglages</h3>
-        <label>Modèle Claude</label>
+        <label>Modèle Claude (Europe)</label>
         <select id="settingsModel">
-            <optgroup label="Recommandé (Performant & Intelligent)">
-                <option value="us.anthropic.claude-3-5-sonnet-20241022-v2:0">Claude 3.5 Sonnet v2 (USA - Top Performance)</option>
-                <option value="us.anthropic.claude-3-opus-20240229-v1:0">Claude 3 Opus (USA - Votre Abonnement)</option>
+            <optgroup label="Claude 4.6 (Next Gen)">
+                <option value="eu.anthropic.claude-opus-4-6-v1:0">Claude Opus 4.6 (Europe - Le plus puissant)</option>
             </optgroup>
-            <optgroup label="Europe (Souveraineté des données)">
-                <option value="eu.anthropic.claude-3-haiku-20240307-v1:0">Claude 3 Haiku (Europe - Rapide & RGPD)</option>
-            </optgroup>
-            <optgroup label="Ultra Rapide (US)">
-                <option value="us.anthropic.claude-3-5-haiku-20241022-v1:0">Claude 3.5 Haiku (USA - Rapide & Intelligent)</option>
+            <optgroup label="Claude 4.5">
+                <option value="eu.anthropic.claude-sonnet-4-5-20250929-v1:0">Claude Sonnet 4.5 (Europe - Équilibré)</option>
+                <option value="eu.anthropic.claude-haiku-4-5-20251001-v1:0">Claude Haiku 4.5 (Europe - Rapide)</option>
             </optgroup>
         </select>
         <label>Région AWS</label>
@@ -933,8 +930,8 @@ async function deleteConversation(id) {
         document.getElementById('messagesContainer').innerHTML = `
             <div class="welcome" id="welcomeScreen">
                 <div class="welcome-icon">CP</div>
-                <h2>Bienvenue sur ClaudePrivé</h2>
-                <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+                <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
+                <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
             </div>`;
         document.getElementById('chatTitle').textContent = 'ClaudePrivé';
     }
@@ -1213,8 +1210,8 @@ async function selectProject(id) {
     document.getElementById('messagesContainer').innerHTML = `
         <div class="welcome" id="welcomeScreen">
             <div class="welcome-icon">CP</div>
-            <h2>Bienvenue sur ClaudePrivé</h2>
-            <p>Votre assistant privé propulsé par Claude via AWS Bedrock. Vos données restent dans votre infrastructure.</p>
+            <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
+            <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
         </div>`;
     document.getElementById('chatTitle').textContent = 'ClaudePrivé';
 }
@@ -1312,7 +1309,7 @@ async function deleteProjectFile(savedAs) {
 // ═══════════════════════════════════════
 async function loadSettings() {
     settings = await api('/api/settings');
-    document.getElementById('settingsModel').value = settings.model || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+    document.getElementById('settingsModel').value = settings.model || 'eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
     document.getElementById('settingsRegion').value = settings.region || 'eu-west-3';
     updateModelBadge();
 }
@@ -1320,9 +1317,9 @@ async function loadSettings() {
 function updateModelBadge() {
     const m = settings.model || '';
     let label = 'Claude';
-    if (m.includes('sonnet')) label = '3.5 Sonnet';
-    else if (m.includes('haiku')) label = '3 Haiku';
-    else if (m.includes('opus')) label = '3 Opus';
+    if (m.includes('sonnet')) label = 'Sonnet 4.5';
+    else if (m.includes('haiku')) label = 'Haiku 4.5';
+    else if (m.includes('opus')) label = 'Opus 4.6';
     
     if (m.startsWith('eu.')) label += ' (EU)';
     else if (m.startsWith('us.')) label += ' (US)';

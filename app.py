@@ -31,6 +31,7 @@ def get_bedrock_client(model_id=None):
     """
     Retourne un client Bedrock configuré pour la bonne région.
     Si le modèle est explicite sur sa région (us. ou eu.), on force cette région.
+    Pour les modèles Cross-Region EU (eu.anthropic...), on utilise la région configurée (ex: Paris).
     """
     settings_region = load_settings().get("region", "eu-west-3")
     
@@ -40,27 +41,30 @@ def get_bedrock_client(model_id=None):
     if model_id:
         if model_id.startswith("us."):
             target_region = "us-east-1"
-        elif model_id.startswith("eu."):
-            # Pour les profils EU, on peut généralement appeler depuis n'importe quelle région EU
-            # ou us-east-1, mais on préfère rester sur la région configurée si elle est EU.
-            if not settings_region.startswith("eu-"):
-                target_region = "eu-central-1" # Fallback Europe
-        elif "opus" in model_id or "haiku" in model_id:
-            # Claude 3 Opus et Claude 3.5 Haiku sont US Only pour l'instant
-            target_region = "us-east-1"
+        # Pour les modèles eu.*, on laisse la région par défaut (eu-west-3),
+        # car les profils d'inférence EU sont accessibles depuis Paris.
 
     return boto3.client("bedrock-runtime", region_name=target_region)
 
 # Tarifs Bedrock par million de tokens (USD)
+# Basé sur les modèles 2026 disponibles à Paris (eu-west-3)
 PRICING = {
-    # 1. Claude 3.5 Sonnet v2 (US - Intelligent & Rapide)
-    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
+    # ─── NEXT GEN (2026) ───
     
-    # 2. Claude 3 Opus (US - Très intelligent)
-    "us.anthropic.claude-3-opus-20240229-v1:0": {"input": 15.0, "output": 75.0},
+    # Claude Opus 4.6 (Le plus puissant)
+    "eu.anthropic.claude-opus-4-6-v1:0": {"input": 15.0, "output": 75.0},
+    "anthropic.claude-opus-4-6-v1:0":    {"input": 15.0, "output": 75.0},
 
-    # 3. Claude 3.5 Haiku (US - Ultra Rapide & Intelligent)
-    "us.anthropic.claude-3-5-haiku-20241022-v1:0": {"input": 1.0, "output": 5.0},
+    # Claude Sonnet 4.5
+    "eu.anthropic.claude-sonnet-4-5-20250929-v1:0": {"input": 3.0, "output": 15.0},
+    "anthropic.claude-sonnet-4-5-20250929-v1:0":    {"input": 3.0, "output": 15.0},
+
+    # Claude Haiku 4.5
+    "eu.anthropic.claude-haiku-4-5-20251001-v1:0": {"input": 0.25, "output": 1.25},
+    "anthropic.claude-haiku-4-5-20251001-v1:0":    {"input": 0.25, "output": 1.25},
+
+    # ─── LEGACY / FALLBACK ───
+    "us.anthropic.claude-3-5-sonnet-20241022-v2:0": {"input": 3.0, "output": 15.0},
 }
 
 # Liste des modèles valides (pour auto-correction)
@@ -69,12 +73,11 @@ VALID_MODELS = list(PRICING.keys())
 def call_claude(messages, system_prompt, model=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
-        # Par défaut : Sonnet 3.5 v2 (US) car c'est le seul fiable "intelligent"
-        model = load_settings().get("model", "us.anthropic.claude-3-5-sonnet-20241022-v2:0")
+        # Par défaut : Sonnet 4.5 (EU)
+        model = load_settings().get("model", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0")
     
-    # Correction automatique pour Opus si l'ancien ID standard est encore utilisé par les settings
-    if model == "anthropic.claude-3-opus-20240229-v1:0":
-        model = "us.anthropic.claude-3-opus-20240229-v1:0"
+    # Auto-correction pour les anciens IDs si nécessaire
+    # (Pas nécessaire si on force le refresh des settings au chargement)
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -242,22 +245,23 @@ def save_prompts(prompts):
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 DEFAULT_SETTINGS = {
-    "model": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "model": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
     "region": "eu-west-3",
     "active_prompt": "general",
 }
 
 def load_settings():
     if SETTINGS_FILE.exists():
-        settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-        
-        # Auto-correction : Si le modèle n'est pas valide/actif, on force le défaut
-        if settings.get("model") not in VALID_MODELS:
-            print(f"[AUTO-FIX] Modèle invalide/legacy détecté : {settings.get('model')}. Remplacement par défaut.")
-            settings["model"] = DEFAULT_SETTINGS["model"]
-            save_settings(settings)
-            
-        return settings
+        try:
+            settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            # Auto-correction : Si le modèle n'est pas valide/actif, on force le défaut
+            if settings.get("model") not in VALID_MODELS:
+                print(f"[AUTO-FIX] Modèle invalide/legacy détecté : {settings.get('model')}. Remplacement par défaut.")
+                settings["model"] = DEFAULT_SETTINGS["model"]
+                save_settings(settings)
+            return settings
+        except Exception:
+            pass # Fichier corrompu ou illisible
         
     save_settings(DEFAULT_SETTINGS)
     return DEFAULT_SETTINGS.copy()
