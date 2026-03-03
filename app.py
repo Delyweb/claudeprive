@@ -63,6 +63,9 @@ PRICING = {
     "us.anthropic.claude-3-5-haiku-20241022-v1:0": {"input": 1.0, "output": 5.0},
 }
 
+# Liste des modèles valides (pour auto-correction)
+VALID_MODELS = list(PRICING.keys())
+
 def call_claude(messages, system_prompt, model=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
@@ -246,7 +249,16 @@ DEFAULT_SETTINGS = {
 
 def load_settings():
     if SETTINGS_FILE.exists():
-        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        settings = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        
+        # Auto-correction : Si le modèle n'est pas valide/actif, on force le défaut
+        if settings.get("model") not in VALID_MODELS:
+            print(f"[AUTO-FIX] Modèle invalide/legacy détecté : {settings.get('model')}. Remplacement par défaut.")
+            settings["model"] = DEFAULT_SETTINGS["model"]
+            save_settings(settings)
+            
+        return settings
+        
     save_settings(DEFAULT_SETTINGS)
     return DEFAULT_SETTINGS.copy()
 
