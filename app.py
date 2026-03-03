@@ -12,7 +12,6 @@ from pathlib import Path
 
 import boto3
 from flask import Flask, render_template, request, jsonify
-import journal
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 Mo max upload pour vidéo
@@ -744,26 +743,6 @@ def api_project_delete_file(project_id, saved_as):
         txt_path.unlink()
 
     return jsonify({"ok": True})
-
-
-@app.route("/api/projects/<project_id>/journal", methods=["POST"])
-def api_generate_journal_manual(project_id):
-    """Génère manuellement le journal du jour pour un projet."""
-    context = {
-        'get_project': get_project,
-        'load_conversations': load_conversations,
-        'call_claude': call_claude,
-        'save_project': save_project,
-        'UPLOADS_DIR': UPLOADS_DIR,
-        'load_projects': load_projects
-    }
-    
-    result = journal.generate_journal(project_id, context)
-    
-    if result:
-        return jsonify(result)
-    else:
-        return jsonify({"message": "Aucun journal généré (pas d'activité ou déjà existant)"}), 200
 
 
 # ── Réglages ──
