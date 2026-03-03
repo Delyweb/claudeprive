@@ -1,7 +1,7 @@
 # Progress: ClaudePrivé
 
 ## Statut Global
-Le projet est en version v2.3. Les fonctionnalités de **Journal Quotidien**, **Recherche** et **Support Vidéo** ont été ajoutées.
+Le projet est stable (v2.3). La fonctionnalité de Journal Quotidien a été temporairement retirée pour des raisons de stabilité serveur.
 
 ## Fonctionnalités (Roadmap)
 
@@ -13,7 +13,7 @@ Le projet est en version v2.3. Les fonctionnalités de **Journal Quotidien**, **
     - [x] Route de déplacement de conversation (PUT /project)
     - [x] Route de recherche (GET /search)
     - [x] Intégration S3 / Pegasus (Vidéo)
-    - [x] **Scheduler (APScheduler) pour Journal Quotidien**
+    - [ ] **Scheduler (Suspendu pour cause de crash 502)**
 - [x] **Intégration AWS Bedrock**
     - [x] Support Modèles 2026 (Opus 4.6, Sonnet 4.5, Haiku 4.5)
     - [x] Profils Cross-Region Europe/US
@@ -26,7 +26,7 @@ Le projet est en version v2.3. Les fonctionnalités de **Journal Quotidien**, **
     - [x] Drag & Drop pour classer les conversations
     - [x] Menu Contextuel (Renommer/Déplacer/Supprimer)
     - [x] Barre de Recherche (Historique global)
-    - [x] **Bouton "Journal" dans les projets**
+    - [ ] Bouton "Journal" (Désactivé)
 - [x] **Confidentialité**
     - [x] Prompt système "Europe" par défaut
     - [x] Limitation aux régions EU dans l'interface
@@ -37,8 +37,7 @@ Le projet est en version v2.3. Les fonctionnalités de **Journal Quotidien**, **
     - [x] Association aux Projets
 - [x] **Fonctionnalités Avancées**
     - [x] Gestion de "Projets"
-    - [x] Prompts système personnalisables
-    - [x] **Génération automatique de journal (Actions/Décisions)**
+    - [x] Prompts système personnalisables (dont Domotique)
 - [x] **Déploiement**
     - [x] Dockerfile optimisé
     - [x] docker-compose.yml
@@ -46,5 +45,4 @@ Le projet est en version v2.3. Les fonctionnalités de **Journal Quotidien**, **
     - [x] Guide S3
 
 ## Problèmes Connus
--   Aucun bug majeur connu.
--   L'analyse vidéo complète nécessite une configuration S3 manuelle (voir GUIDE_S3.md).
+-   Le module `APScheduler` cause des erreurs 502 avec Gunicorn sur certains environnements. Il a été retiré.
