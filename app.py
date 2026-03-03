@@ -798,7 +798,7 @@ def start_scheduler():
     scheduler.start()
 
 if __name__ == "__main__":
-    # Démarrer le scheduler (attention au double démarrage en debug mode, 
+    # Démarrer le scheduler pour le journal quotidien (attention au double démarrage en debug mode, 
     # use_reloader=False peut être nécessaire pour éviter ça en dev)
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         start_scheduler()
