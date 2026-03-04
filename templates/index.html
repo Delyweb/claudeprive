@@ -2909,7 +2909,7 @@ function formatMessage(text) {
         const safeCode = escapeHtml(rawCode);
         const ext = extMap[(lang||'').toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
         const b64 = btoa(unescape(encodeURIComponent(rawCode)));
-        return `<div class="artifact-block"><div class="artifact-header"><span class="artifact-lang">${safeLang}</span><button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button></div><div class="artifact-body"><pre><code>${safeCode}</code></pre></div></div>`;
+        return `<div class="artifact-block"><div class="artifact-header"><span class="artifact-lang">${safeLang}</span><button class="artifact-save-btn" onclick="copyArtifactInline(this)" data-code="${b64}" title="Copier">📋 Copier</button><button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button></div><div class="artifact-body"><pre><code>${safeCode}</code></pre></div></div>`;
     }
 
     const codeBlockRegex = /```([\w.+-]*)\n([\s\S]*?)```/g;
@@ -2988,6 +2988,16 @@ function printArtifact() {
         w.document.close();
         w.print();
     }
+}
+
+async function copyArtifactInline(btn) {
+    try {
+        const code = decodeURIComponent(escape(atob(btn.dataset.code)));
+        await navigator.clipboard.writeText(code);
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copié';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+    } catch(e) { showToast('Impossible de copier', true); }
 }
 
 async function copyArtifact() {
