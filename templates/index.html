@@ -1342,13 +1342,18 @@
                 <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
                 <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
             </div>
-            <div class="cp-files-upload-zone"
-                 onclick="document.getElementById('cpFileInput').click()"
-                 ondragover="event.preventDefault();this.classList.add('drag-over')"
-                 ondragleave="this.classList.remove('drag-over')"
-                 ondrop="cpFilesHandleDrop(event)">
-                <input type="file" id="cpFileInput" style="display:none" onchange="handleProjectFileUploadFromPanel(event)">
-                + Ajouter un fichier ou glisser ici
+            <div style="display:flex;gap:6px;padding:8px 8px 0;">
+                <div class="cp-files-upload-zone" style="flex:1;margin:0;"
+                     onclick="document.getElementById('cpFileInput').click()"
+                     ondragover="event.preventDefault();this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')"
+                     ondrop="cpFilesHandleDrop(event)">
+                    <input type="file" id="cpFileInput" style="display:none" onchange="handleProjectFileUploadFromPanel(event)">
+                    ⬆️ Upload
+                </div>
+                <div class="cp-files-upload-zone" style="flex:1;margin:0;" onclick="openNewFileModal()">
+                    📝 Nouveau
+                </div>
             </div>
             <div id="cpFilesList" class="cp-files-col-body"></div>
         </div>
@@ -1365,6 +1370,7 @@
         </div>
         <div class="project-page-actions">
             <button class="prompt-btn-sm" id="ppJournalBtn" onclick="generateJournalPage(event)">Journal du jour</button>
+            <button class="prompt-btn-sm" onclick="openNewFileModal()" style="color:var(--accent);">📝 Nouveau fichier</button>
             <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
             <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
         </div>
@@ -1498,6 +1504,21 @@
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeModal('moveModal')">Annuler</button>
             <button class="modal-btn modal-btn-primary" onclick="moveConversation()">Déplacer</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ New File Modal ═══ -->
+<div class="modal-overlay" id="newFileModal">
+    <div class="modal" style="width:560px;">
+        <h3>Nouveau fichier</h3>
+        <label>Nom du fichier</label>
+        <input type="text" id="newFileName" placeholder="Ex: email.md, script.py, config.json">
+        <label>Contenu</label>
+        <textarea id="newFileContent" placeholder="Coller ou saisir le contenu ici..." rows="12" style="font-family:'SF Mono','Fira Code',monospace;font-size:0.85rem;"></textarea>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('newFileModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="saveNewFile()">Enregistrer dans le projet</button>
         </div>
     </div>
 </div>
@@ -2455,6 +2476,41 @@ async function reextractFile(savedAs, btn) {
     }
     if (document.getElementById('conversationsPage').classList.contains('visible')) {
         renderCpFiles(proj.files || []);
+    }
+}
+
+function openNewFileModal() {
+    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
+    document.getElementById('newFileName').value = '';
+    document.getElementById('newFileContent').value = '';
+    openModal('newFileModal');
+    setTimeout(() => document.getElementById('newFileName').focus(), 100);
+}
+
+async function saveNewFile() {
+    const filename = document.getElementById('newFileName').value.trim();
+    const content = document.getElementById('newFileContent').value;
+    if (!filename) { alert('Nom du fichier requis.'); return; }
+    if (!currentProjectId) { alert('Aucun projet sélectionné.'); return; }
+    const btn = document.querySelector('#newFileModal .modal-btn-primary');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content });
+        if (res.error) { alert(res.error); return; }
+        closeModal('newFileModal');
+        const proj = await api(`/api/projects/${currentProjectId}`);
+        if (document.getElementById('projectPage').classList.contains('visible')) {
+            renderProjectPageFiles(proj.files || []);
+        }
+        if (document.getElementById('conversationsPage').classList.contains('visible')) {
+            renderCpFiles(proj.files || []);
+        }
+    } catch(e) {
+        alert('Erreur : ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enregistrer dans le projet';
     }
 }
 
