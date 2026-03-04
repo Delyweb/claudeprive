@@ -721,30 +721,46 @@ def api_chat():
     if project_id:
         proj = get_project(project_id, u)
         uploads_dir = get_uploads_dir(u)
-        if proj and proj.get("files"):
-            project_context = "\n\n--- DOCUMENTS DU PROJET (CONTEXTE RAG) ---\n"
-            has_docs = False
-            for file in proj["files"]:
-                saved_as = file.get("saved_as")
-                if saved_as:
+        if proj:
+            project_context = f"\n\n--- PROJET : {proj.get('name', project_id)} ---\n"
+            if proj.get("description"):
+                project_context += f"Description : {proj['description']}\n"
+            files = proj.get("files", [])
+            if files:
+                project_context += f"\nFichiers disponibles dans ce projet ({len(files)}) :\n"
+                for f in files:
+                    status = f.get("status", "ready")
+                    project_context += f"  - {f['filename']} ({status})\n"
+                project_context += "\n--- CONTENU DES DOCUMENTS ---\n"
+                has_content = False
+                for file in files:
+                    saved_as = file.get("saved_as")
+                    if not saved_as:
+                        continue
+                    if file.get("status") == "processing":
+                        project_context += f"\n[{file['filename']}] : analyse en cours, contenu non disponible.\n"
+                        continue
                     txt_path = uploads_dir / (saved_as + ".txt")
                     if txt_path.exists():
                         try:
                             file_text = txt_path.read_text(encoding="utf-8")
-                            print(f"[DEBUG] Injection du document {file['filename']} ({len(file_text)} chars)")
+                            print(f"[DEBUG] Injection {file['filename']} ({len(file_text)} chars)")
                             if len(file_text) > 50000:
-                                file_text = file_text[:50000] + "\n...[Tronqué]..."
-                            project_context += f"\n[Document: {file['filename']}]\n{file_text}\n"
-                            has_docs = True
+                                file_text = file_text[:50000] + "\n...[Tronqué à 50000 chars]..."
+                            project_context += f"\n[{file['filename']}]\n{file_text}\n"
+                            has_content = True
                         except Exception as e:
-                            print(f"[ERREUR] Erreur lecture contexte {saved_as}: {e}")
+                            print(f"[ERREUR] Lecture contexte {saved_as}: {e}")
+                            project_context += f"\n[{file['filename']}] : erreur de lecture ({e}).\n"
                     else:
-                        print(f"[DEBUG] Fichier texte manquant pour {file['filename']} ({saved_as}.txt)")
-            if has_docs:
+                        print(f"[DEBUG] .txt manquant pour {file['filename']} ({saved_as})")
+                        project_context += f"\n[{file['filename']}] : contenu non extrait (fichier .txt manquant).\n"
                 final_system_prompt += project_context
-                final_system_prompt += "\n\nINSTRUCTIONS: Utilise EXCLUSIVEMENT les documents ci-dessus pour répondre aux questions sur le projet. Si la réponse n'y est pas, dis-le clairement."
+                if has_content:
+                    final_system_prompt += "\nINSTRUCTIONS : Utilise les documents ci-dessus comme contexte principal. Si une information n'est pas dans les documents, dis-le clairement sans inventer."
             else:
-                print("[DEBUG] Aucun document texte trouvé pour ce projet.")
+                project_context += "Aucun fichier dans ce projet.\n"
+                final_system_prompt += project_context
 
     print(f"[DEBUG] System Prompt Size: {len(final_system_prompt)} chars")
 
@@ -863,20 +879,20 @@ Génère un journal quotidien concis au format markdown :
 # Journal {project_name} - {today}
 
 ## Actions réalisées
-Liste des actions concrètes effectuées aujourd'hui. Utilise ✅ pour chaque action.
+Liste des actions concrètes effectuées aujourd'hui.
 
 ## Informations clés
 Nouvelles informations apprises, réponses reçues, clarifications obtenues.
 
 ## Prochaines étapes
-Actions identifiées à faire ou en attente. Utilise ⏳ pour chaque item.
+Actions identifiées à faire ou en attente.
 
 ## Points d'attention
 Risques, blocages, sujets sensibles.
 
 ---
 
-Règles : sois factuel et concis. Si une section est vide, ne pas l'inclure. Maximum 30 lignes.
+Règles : sois factuel et concis. Pas d'emojis. Si une section est vide, ne pas l'inclure. Maximum 30 lignes.
 
 Conversations du jour :
 {conversations_text}"""
