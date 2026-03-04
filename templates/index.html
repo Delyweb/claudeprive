@@ -1365,6 +1365,7 @@
                     <div style="font-size:0.82rem;font-weight:600;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="cpFilesProjectName"></div>
                     <div style="font-size:0.72rem;color:var(--text-muted);" id="cpFilesCount">0 fichier</div>
                 </div>
+                <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--accent);" onclick="createFolder()" title="Nouveau dossier">📁+</button>
                 <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectModal()" title="Modifier le projet">✏️</button>
                 <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
                 <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
@@ -1403,6 +1404,7 @@
         </div>
         <div class="project-page-actions">
             <button class="prompt-btn-sm" id="ppJournalBtn" onclick="generateJournalPage(event)">Journal du jour</button>
+            <button class="prompt-btn-sm" onclick="createFolder()" style="color:var(--accent);">📁+ Dossier</button>
             <button class="prompt-btn-sm" onclick="openNewFileModal()" style="color:var(--accent);">📝 Nouveau fichier</button>
             <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
             <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
@@ -2268,6 +2270,7 @@ function renderProjectPageFiles(files) {
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
                     ${noContent ? `<button class="pp-file-delete" style="color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)">↺ Extraire</button>` : ''}
+                    <button class="pp-file-delete" onclick="moveFileToFolder('${f.saved_as}','${escapeHtml(f.folder||'')}')" title="Déplacer vers un dossier">📁 Déplacer</button>
                     <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
                 </div>
             </div>`;
@@ -2534,6 +2537,42 @@ async function reextractFile(savedAs, btn) {
     }
 }
 
+function createFolder() {
+    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
+    const name = prompt('Nom du nouveau dossier :');
+    if (!name || !name.trim()) return;
+    const folder = name.trim().replace(/^\/+|\/+$/g, '');
+    syncFolderInputs(folder);
+    // Feedback visuel
+    const notif = document.createElement('div');
+    notif.textContent = `📁 Dossier "${folder}" actif — uploadez ou créez un fichier pour l'y placer`;
+    notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--accent);color:#0f1117;padding:12px 18px;border-radius:8px;z-index:9999;font-size:13px;max-width:340px;';
+    document.body.appendChild(notif);
+    setTimeout(() => notif.remove(), 4000);
+}
+
+async function moveFileToFolder(savedAs, currentFolder) {
+    if (!currentProjectId) return;
+    const proj = projects.find(p => p.id === currentProjectId);
+    const folders = getProjectFolders(proj?.files || []);
+    const folderList = folders.length ? '\n\nDossiers existants : ' + folders.join(', ') : '';
+    const input = prompt(`Déplacer vers quel dossier ? (laisser vide = racine)${folderList}`, currentFolder);
+    if (input === null) return; // annulé
+    const folder = input.trim().replace(/^\/+|\/+$/g, '');
+    const res = await api(`/api/projects/${currentProjectId}/files/${savedAs}/folder`, 'PUT', { folder });
+    if (res.error) { alert(res.error); return; }
+    const updatedProj = await api(`/api/projects/${currentProjectId}`);
+    if (document.getElementById('projectPage').classList.contains('visible')) {
+        renderProjectPageFiles(updatedProj.files || []);
+    }
+    if (document.getElementById('conversationsPage').classList.contains('visible')) {
+        renderCpFiles(updatedProj.files || []);
+    }
+    // Mettre à jour projects local
+    const idx = projects.findIndex(p => p.id === currentProjectId);
+    if (idx !== -1) projects[idx] = updatedProj;
+}
+
 function syncFolderInputs(value) {
     currentUploadFolder = value.trim();
     const cp = document.getElementById('cpFolderInput');
@@ -2629,6 +2668,7 @@ function renderCpFiles(files) {
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0;">
                 ${noContent && f.status !== 'processing' ? `<button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)" title="Extraire">↺</button>` : ''}
+                <button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;" onclick="moveFileToFolder('${f.saved_as}','${escapeHtml(f.folder||'')}')" title="Déplacer">📁</button>
                 <button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
             </div>
         </div>`;

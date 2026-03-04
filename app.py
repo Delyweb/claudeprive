@@ -895,6 +895,24 @@ def api_upload():
     return jsonify(file_info)
 
 
+@app.route("/api/projects/<project_id>/files/<saved_as>/folder", methods=["PUT"])
+@login_required
+def api_project_file_move_folder(project_id, saved_as):
+    u = get_current_user()
+    proj = get_project(project_id, u)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    folder = data.get("folder", "").strip().strip("/")
+    for fi in proj.get("files", []):
+        if fi["saved_as"] == saved_as:
+            fi["folder"] = folder
+            proj["updated_at"] = datetime.now().isoformat()
+            save_project(project_id, proj, u)
+            return jsonify({"ok": True, "folder": folder})
+    return jsonify({"error": "Fichier introuvable"}), 404
+
+
 @app.route("/api/projects/<project_id>/journal", methods=["POST"])
 @login_required
 def api_project_journal(project_id):
