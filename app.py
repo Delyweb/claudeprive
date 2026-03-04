@@ -756,8 +756,25 @@ def api_chat():
                             print(f"[ERREUR] Lecture contexte {saved_as}: {e}")
                             project_context += f"\n[{file['filename']}] : erreur de lecture ({e}).\n"
                     else:
-                        print(f"[DEBUG] .txt manquant pour {file['filename']} ({saved_as})")
-                        project_context += f"\n[{file['filename']}] : contenu non extrait (fichier .txt manquant).\n"
+                        # Fallback : lire le fichier original si c'est un format texte natif
+                        original_path = uploads_dir / saved_as
+                        text_exts = {".md", ".txt", ".csv", ".json", ".xml", ".html",
+                                     ".py", ".js", ".yml", ".yaml"}
+                        if original_path.exists() and Path(saved_as).suffix.lower() in text_exts:
+                            try:
+                                file_text = original_path.read_text(encoding="utf-8", errors="replace").strip()
+                                txt_path.write_text(file_text, encoding="utf-8")  # crée le .txt pour la prochaine fois
+                                print(f"[DEBUG] Fallback lecture directe {file['filename']} ({len(file_text)} chars)")
+                                if len(file_text) > 50000:
+                                    file_text = file_text[:50000] + "\n...[Tronqué à 50000 chars]..."
+                                project_context += f"\n[{file['filename']}]\n{file_text}\n"
+                                has_content = True
+                            except Exception as e:
+                                print(f"[ERREUR] Fallback lecture {saved_as}: {e}")
+                                project_context += f"\n[{file['filename']}] : erreur de lecture ({e}).\n"
+                        else:
+                            print(f"[DEBUG] .txt manquant pour {file['filename']} ({saved_as})")
+                            project_context += f"\n[{file['filename']}] : contenu non disponible.\n"
                 final_system_prompt += project_context
                 if has_content:
                     final_system_prompt += "\nINSTRUCTIONS : Utilise les documents ci-dessus comme contexte principal. Si une information n'est pas dans les documents, dis-le clairement sans inventer."
@@ -1112,6 +1129,51 @@ def api_project_upload_complete(project_id):
 
     threading.Thread(target=process_video_bg, args=(project_id, safe_name, str(filepath), s3_uri, s3_key, u), daemon=True).start()
     return jsonify({**file_info})
+
+
+@app.route("/api/projects/<project_id>/files/<saved_as>/reextract", methods=["POST"])
+@login_required
+def api_project_reextract_file(project_id, saved_as):
+    u = get_current_user()
+    uploads_dir = get_uploads_dir(u)
+    proj = get_project(project_id, u)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    file_info = next((f for f in proj.get("files", []) if f["saved_as"] == saved_as), None)
+    if not file_info:
+        return jsonify({"error": "Fichier introuvable dans le projet"}), 404
+    filepath = uploads_dir / saved_as
+    if not filepath.exists():
+        return jsonify({"error": "Fichier source introuvable sur le disque"}), 404
+
+    video_exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    ext = Path(saved_as).suffix.lower()
+    if ext in video_exts:
+        file_info["status"] = "processing"
+        file_info["text_preview"] = ""
+        save_project(project_id, proj, u)
+        def process_video_bg(pid, sname, fpath, username):
+            text = extract_text_from_file(fpath)
+            txt_path = Path(str(fpath) + ".txt")
+            txt_path.write_text(text, encoding="utf-8")
+            p = get_project(pid, username)
+            if p:
+                for fi in p.get("files", []):
+                    if fi["saved_as"] == sname:
+                        fi["status"] = "ready"
+                        fi["text_preview"] = text[:200] + "..." if len(text) > 200 else text
+                        break
+                save_project(pid, p, username)
+        threading.Thread(target=process_video_bg, args=(project_id, saved_as, str(filepath), u), daemon=True).start()
+        return jsonify({"ok": True, "status": "processing"})
+
+    text = extract_text_from_file(str(filepath))
+    txt_path = uploads_dir / (saved_as + ".txt")
+    txt_path.write_text(text, encoding="utf-8")
+    file_info["text_preview"] = text[:200] + "..." if len(text) > 200 else text
+    file_info["status"] = "ready"
+    save_project(project_id, proj, u)
+    return jsonify({"ok": True, "preview": file_info["text_preview"]})
 
 
 @app.route("/api/projects/<project_id>/files/<saved_as>", methods=["DELETE"])

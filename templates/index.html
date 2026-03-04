@@ -2114,15 +2114,19 @@ function renderProjectPageFiles(files) {
                 <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
             </div>`;
         }
+        const noContent = !f.text_preview;
         return `
-            <div class="pp-file-item">
+            <div class="pp-file-item" id="ppfile-${f.saved_as}">
                 <span class="pp-file-icon">${icon}</span>
                 <div class="pp-file-info">
                     <div class="pp-file-name">${escapeHtml(f.filename)}</div>
-                    <div class="pp-file-meta">${size} · ${date}</div>
+                    <div class="pp-file-meta">${size} · ${date}${noContent ? ' · <span style="color:var(--danger)">contenu non extrait</span>' : ''}</div>
                     ${preview ? `<div class="pp-file-preview">${preview}</div>` : ''}
                 </div>
-                <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                    ${noContent ? `<button class="pp-file-delete" style="color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)">↺ Extraire</button>` : ''}
+                    <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
+                </div>
             </div>`;
     }).join('');
 
@@ -2355,6 +2359,17 @@ async function deleteProjectFile(savedAs) {
     }
 }
 
+
+async function reextractFile(savedAs, btn) {
+    if (!currentProjectId) return;
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    const res = await api(`/api/projects/${currentProjectId}/files/${savedAs}/reextract`, 'POST');
+    if (res.error) { alert(res.error); btn.disabled = false; btn.textContent = '↺ Extraire'; return; }
+    // Refresh la liste
+    const proj = await api(`/api/projects/${currentProjectId}`);
+    renderProjectPageFiles(proj.files || []);
+}
 
 // ═══════════════════════════════════════
 // Settings
