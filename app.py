@@ -431,6 +431,8 @@ def call_pegasus_video(filepath, existing_s3_uri=None, existing_s3_key=None):
         return text
 
     except Exception as e:
+        import traceback
+        print(f"[PEGASUS ERROR] {str(e)}\n{traceback.format_exc()}")
         return f"[Erreur Analyse Vidéo : {str(e)}]"
 
 
@@ -1187,7 +1189,7 @@ def api_project_upload(project_id):
 
     if is_video:
         def process_video_bg(pid, sname, fpath, username):
-            text = extract_text_from_file(fpath)
+            text = extract_text_from_file(fpath, username=username)
             txt_path = Path(str(fpath) + ".txt")
             txt_path.write_text(text, encoding="utf-8")
             p = get_project(pid, username)
@@ -1317,7 +1319,7 @@ def api_project_reextract_file(project_id, saved_as):
         file_info["text_preview"] = ""
         save_project(project_id, proj, u)
         def process_video_bg(pid, sname, fpath, username):
-            text = extract_text_from_file(fpath)
+            text = extract_text_from_file(fpath, username=username)
             txt_path = Path(str(fpath) + ".txt")
             txt_path.write_text(text, encoding="utf-8")
             p = get_project(pid, username)
@@ -1331,7 +1333,7 @@ def api_project_reextract_file(project_id, saved_as):
         threading.Thread(target=process_video_bg, args=(project_id, saved_as, str(filepath), u), daemon=True).start()
         return jsonify({"ok": True, "status": "processing"})
 
-    text = extract_text_from_file(str(filepath))
+    text = extract_text_from_file(str(filepath), username=u)
     txt_path = uploads_dir / (saved_as + ".txt")
     txt_path.write_text(text, encoding="utf-8")
     file_info["text_preview"] = text[:200] + "..." if len(text) > 200 else text

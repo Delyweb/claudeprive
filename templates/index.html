@@ -2737,64 +2737,95 @@ async function handleProjectFileUpload(e) {
     e.target.value = '';
 }
 
+function showVideoProgress(filename) {
+    let el = document.getElementById('_videoProgressToast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '_videoProgressToast';
+        el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);padding:14px 18px;border-radius:10px;z-index:9999;font-size:13px;min-width:260px;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `<div style="font-weight:600;margin-bottom:8px;">📤 Upload vidéo</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(filename)}</div>
+        <div style="background:var(--bg-tertiary);border-radius:4px;height:6px;overflow:hidden;">
+            <div id="_videoProgressBar" style="height:100%;width:0%;background:var(--accent);transition:width 0.2s;"></div>
+        </div>
+        <div id="_videoProgressPct" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">0%</div>`;
+    el.style.display = '';
+}
+
+function updateVideoProgress(pct) {
+    const bar = document.getElementById('_videoProgressBar');
+    const lbl = document.getElementById('_videoProgressPct');
+    if (bar) bar.style.width = pct + '%';
+    if (lbl) lbl.textContent = pct + '%';
+}
+
+function hideVideoProgress() {
+    const el = document.getElementById('_videoProgressToast');
+    if (el) el.remove();
+}
+
 async function handleVideoUploadS3(file) {
+    if (!currentProjectId) return;
+
     // 1. Obtenir l'URL pré-signée S3
     let urlData;
     try {
         urlData = await api(`/api/projects/${currentProjectId}/upload-url?filename=${encodeURIComponent(file.name)}`);
-        if (urlData.error) { alert(urlData.error); return; }
-    } catch (err) { alert('Erreur : ' + err.message); return; }
+        if (urlData.error) { showToast('Erreur S3 : ' + urlData.error, true); return; }
+    } catch (err) { showToast('Erreur : ' + err.message, true); return; }
 
-    // 2. Afficher la barre de progression
-    const prog = document.getElementById('ppUploadProgress');
-    const bar = document.getElementById('ppUploadBar');
-    const pct = document.getElementById('ppUploadPercent');
-    const fname = document.getElementById('ppUploadFileName');
-    prog.style.display = '';
-    bar.style.width = '0%';
-    pct.textContent = '0%';
-    fname.textContent = file.name;
-    document.getElementById('ppUploadZone').style.pointerEvents = 'none';
+    // 2. Barre de progression flottante (fonctionne depuis n'importe quel panneau)
+    showVideoProgress(file.name);
 
-    // 3. Upload direct vers S3 via XMLHttpRequest (pour la progression)
+    // 3. Upload direct vers S3
+    const contentType = file.type || 'video/mp4';
+    let uploadOk = true;
     await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', urlData.upload_url);
-        xhr.setRequestHeader('Content-Type', 'video/mp4');
-        xhr.upload.onprogress = (ev) => {
-            if (ev.lengthComputable) {
-                const p = Math.round(ev.loaded / ev.total * 100);
-                bar.style.width = p + '%';
-                pct.textContent = p + '%';
-            }
+        xhr.setRequestHeader('Content-Type', contentType);
+        xhr.upload.onprogress = ev => {
+            if (ev.lengthComputable) updateVideoProgress(Math.round(ev.loaded / ev.total * 100));
         };
-        xhr.onload = () => xhr.status < 300 ? resolve() : reject(new Error('Erreur S3 : ' + xhr.status));
-        xhr.onerror = () => reject(new Error('Erreur réseau'));
+        xhr.onload = () => {
+            if (xhr.status < 300) { resolve(); }
+            else { uploadOk = false; reject(new Error(`Erreur S3 HTTP ${xhr.status}`)); }
+        };
+        xhr.onerror = () => { uploadOk = false; reject(new Error('Erreur réseau pendant l\'upload')); };
         xhr.send(file);
-    }).catch(err => { alert(err.message); prog.style.display = 'none'; document.getElementById('ppUploadZone').style.pointerEvents = ''; return; });
+    }).catch(err => {
+        hideVideoProgress();
+        showToast(err.message, true);
+        uploadOk = false;
+    });
 
-    // 4. Notifier le serveur que l'upload est terminé
-    prog.style.display = 'none';
-    document.getElementById('ppUploadZone').style.pointerEvents = '';
+    if (!uploadOk) return;
+
+    // 4. Notifier le serveur
+    hideVideoProgress();
     try {
-        await api(`/api/projects/${currentProjectId}/upload-complete`, 'POST', {
+        const res = await api(`/api/projects/${currentProjectId}/upload-complete`, 'POST', {
             s3_key: urlData.s3_key,
             safe_name: urlData.safe_name,
             filename: urlData.filename,
             size: file.size,
             folder: currentUploadFolder
         });
-    } catch (err) { alert('Erreur : ' + err.message); return; }
+        if (res.error) { showToast('Erreur après upload : ' + res.error, true); return; }
+    } catch (err) { showToast('Erreur : ' + err.message, true); return; }
 
-    // 5. Revenir au chat, lancer le polling
+    // 5. Rafraîchir les panneaux et lancer le polling
     const proj = await api(`/api/projects/${currentProjectId}`);
+    const idx = projects.findIndex(p => p.id === currentProjectId);
+    if (idx !== -1) projects[idx] = proj;
     document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
-    closeProjectPage();
-    const notif = document.createElement('div');
-    notif.textContent = '⏳ Vidéo envoyée — analyse Pegasus en cours...';
-    notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#555;color:#fff;padding:12px 20px;border-radius:8px;z-index:9999;font-size:14px;';
-    document.body.appendChild(notif);
-    setTimeout(() => notif.remove(), 5000);
+    if (document.getElementById('projectPage').classList.contains('visible')) renderProjectPageFiles(proj.files || []);
+    if (document.getElementById('conversationsPage').classList.contains('visible')) renderCpFiles(proj.files || []);
+    if (document.getElementById('chatFilesPanel').classList.contains('visible')) renderChatFilesPanel(proj.files || []);
+
+    showToast('⏳ Vidéo envoyée — analyse Pegasus en cours…');
     if (!_videoPollingInterval) _videoPollingInterval = setInterval(pollVideoStatus, 5000);
 }
 
