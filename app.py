@@ -143,8 +143,18 @@ init_admin()
 # Client Bedrock
 # ─────────────────────────────────────────────
 
+def get_user_forced_config(username):
+    """Returns forced_model and forced_region from admin config, or empty strings."""
+    if not username:
+        return "", ""
+    users = load_users()
+    u = users.get(username, {})
+    return u.get("forced_model", ""), u.get("forced_region", "")
+
+
 def get_bedrock_client(model_id=None, username=None):
-    settings_region = load_settings(username).get("region", "eu-west-3")
+    _, forced_region = get_user_forced_config(username)
+    settings_region = forced_region or load_settings(username).get("region", "eu-west-3")
     target_region = settings_region
     if model_id and model_id.startswith("us."):
         target_region = "us-east-1"
@@ -169,7 +179,8 @@ VALID_MODELS = list(PRICING.keys())
 def call_claude(messages, system_prompt, model=None, username=None):
     """Appel Claude via AWS Bedrock."""
     if model is None:
-        model = load_settings(username).get("model", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0")
+        forced_model, _ = get_user_forced_config(username)
+        model = forced_model or load_settings(username).get("model", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0")
 
     body = json.dumps({
         "anthropic_version": "bedrock-2023-05-31",
@@ -423,11 +434,20 @@ def call_pegasus_video(filepath, existing_s3_uri=None, existing_s3_key=None):
         return f"[Erreur Analyse Vidéo : {str(e)}]"
 
 
-def extract_text_from_file(filepath):
+def is_pegasus_allowed(username):
+    if not username:
+        return True
+    users = load_users()
+    return users.get(username, {}).get("pegasus_enabled", True)
+
+
+def extract_text_from_file(filepath, username=None):
     """Extrait le texte d'un fichier uploadé."""
     ext = Path(filepath).suffix.lower()
 
     if ext in (".mp4", ".mov", ".avi", ".mkv", ".webm"):
+        if not is_pegasus_allowed(username):
+            return "[Analyse vidéo désactivée pour ce compte]"
         return call_pegasus_video(filepath)
 
     if ext == ".pdf":
@@ -507,11 +527,49 @@ def api_me():
 @admin_required
 def api_admin_list_users():
     users = load_users()
-    result = [
-        {"username": u, "role": d.get("role", "user"), "created_at": d.get("created_at")}
-        for u, d in users.items()
-    ]
-    return jsonify({"users": result})
+    result = []
+    for u, d in users.items():
+        costs = load_costs(u)
+        total = costs.get("total", {})
+        conv_count = 0
+        try:
+            conv_file = get_user_dir(u) / "conversations.json"
+            if conv_file.exists():
+                conv_count = len(json.loads(conv_file.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+        result.append({
+            "username": u,
+            "role": d.get("role", "user"),
+            "created_at": d.get("created_at", ""),
+            "forced_model": d.get("forced_model", ""),
+            "forced_region": d.get("forced_region", ""),
+            "pegasus_enabled": d.get("pegasus_enabled", True),
+            "cost_total": round(total.get("cost_usd", 0), 4),
+            "conv_count": conv_count,
+        })
+    return jsonify({"users": result, "models": VALID_MODELS})
+
+
+@app.route("/api/admin/users/<username>", methods=["PUT"])
+@admin_required
+def api_admin_update_user(username):
+    users = load_users()
+    if username not in users:
+        return jsonify({"error": "Utilisateur introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    if "role" in data and data["role"] in ("admin", "user"):
+        users[username]["role"] = data["role"]
+    if "forced_model" in data:
+        val = data["forced_model"].strip()
+        users[username]["forced_model"] = val if val in VALID_MODELS else ""
+    if "forced_region" in data:
+        val = data["forced_region"].strip()
+        users[username]["forced_region"] = val if val in ("eu-west-3", "us-east-1", "") else ""
+    if "pegasus_enabled" in data:
+        users[username]["pegasus_enabled"] = bool(data["pegasus_enabled"])
+    save_users(users)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/admin/users", methods=["POST"])
@@ -529,10 +587,11 @@ def api_admin_create_user():
     users[username] = {
         "password_hash": generate_password_hash(password),
         "role": role,
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
+        "pegasus_enabled": True,
     }
     save_users(users)
-    get_user_dir(username)  # Crée le dossier
+    get_user_dir(username)
     return jsonify({"ok": True, "username": username}), 201
 
 

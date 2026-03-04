@@ -1334,7 +1334,7 @@
                 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
                 <button id="chatBackBtn" class="prompt-btn-sm" onclick="openConversationsPage()" title="Retour aux conversations du projet" style="display:none;font-size:0.78rem;padding:3px 10px;color:var(--accent);">← Projet</button>
                 <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
-                <button id="chatFilesBtn" class="prompt-btn-sm" onclick="openProjectPage()" title="Voir les fichiers du projet" style="display:none;font-size:0.78rem;padding:3px 10px;">📁 Fichiers</button>
+                <button id="chatFilesBtn" class="prompt-btn-sm" onclick="toggleChatFilesPanel()" title="Voir les fichiers du projet" style="display:none;font-size:0.78rem;padding:3px 10px;">📁 Fichiers</button>
                 <span class="chat-header-model" id="chatModel">Sonnet</span>
                 <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:3px 10px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem;">Admin</button>
                 <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-muted);flex-shrink:0;">
@@ -1377,6 +1377,32 @@
                 <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Envoyer">➤</button>
             </div>
         </div>
+    </div>
+
+    <!-- Panneau fichiers projet (droite, depuis chat) -->
+    <div id="chatFilesPanel" class="artifact-panel" style="width:320px;min-width:280px;">
+        <div class="artifact-panel-header">
+            <span style="font-size:0.85rem;font-weight:600;">📁 Fichiers du projet</span>
+            <span id="chatFilesProjName" style="font-size:0.75rem;color:var(--accent);margin-left:6px;"></span>
+            <div style="display:flex;gap:6px;margin-left:auto;">
+                <button class="ap-action-btn" onclick="openProjectPage()" title="Vue complète">⊞</button>
+                <button class="ap-close-btn" onclick="closeChatFilesPanel()">✕</button>
+            </div>
+        </div>
+        <div style="padding:8px;flex-shrink:0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;gap:6px;">
+                <div class="cp-files-upload-zone" style="flex:1;margin:0;font-size:0.75rem;padding:8px;"
+                     onclick="document.getElementById('chatFilePanelInput').click()"
+                     ondragover="event.preventDefault()" ondrop="cpFilesHandleDrop(event)">
+                    <input type="file" id="chatFilePanelInput" style="display:none" onchange="handleProjectFileUploadFromPanel(event)">
+                    ⬆️ Upload
+                </div>
+                <div class="cp-files-upload-zone" style="flex:1;margin:0;font-size:0.75rem;padding:8px;" onclick="openNewFileModal()">
+                    📝 Nouveau
+                </div>
+            </div>
+        </div>
+        <div id="chatFilesPanelList" class="cp-files-col-body" style="flex:1;overflow-y:auto;"></div>
     </div>
 
     <!-- Panneau artefact (droite) -->
@@ -1564,21 +1590,42 @@
 </div>
 
 <!-- ═══ Admin Modal ═══ -->
-<div class="modal-overlay" id="adminModal">
-    <div class="modal" style="width:520px;">
-        <h3>Gestion des utilisateurs</h3>
-        <div id="adminUsersList" style="margin-bottom:16px;"></div>
-        <div style="border-top:1px solid var(--border);padding-top:16px;">
-            <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Créer un utilisateur</div>
-            <label>Identifiant</label>
-            <input type="text" id="newUsername" placeholder="Ex: alice">
-            <label>Mot de passe</label>
-            <input type="password" id="newPassword" placeholder="Mot de passe initial">
-            <div class="modal-actions">
-                <button class="modal-btn modal-btn-cancel" onclick="closeModal('adminModal')">Fermer</button>
-                <button class="modal-btn modal-btn-primary" onclick="createUser()">Créer</button>
+<div id="adminPage" style="display:none;position:fixed;inset:0;background:var(--bg-primary);z-index:1000;overflow-y:auto;">
+    <div style="max-width:960px;margin:0 auto;padding:32px 24px;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;border-bottom:1px solid var(--border);padding-bottom:20px;">
+            <button onclick="closeAdminPage()" class="modal-btn modal-btn-cancel" style="padding:6px 14px;">← Retour</button>
+            <div>
+                <h1 style="font-size:1.4rem;font-weight:700;margin:0;">Administration</h1>
+                <div style="font-size:0.8rem;color:var(--text-muted);">Gestion des utilisateurs et paramètres</div>
             </div>
         </div>
+
+        <!-- Create user -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:28px;">
+            <div style="font-size:0.9rem;font-weight:600;margin-bottom:14px;color:var(--accent);">+ Nouvel utilisateur</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                <div style="flex:1;min-width:140px;">
+                    <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px;">Identifiant</label>
+                    <input type="text" id="newUsername" placeholder="alice" style="width:100%;box-sizing:border-box;">
+                </div>
+                <div style="flex:1;min-width:140px;">
+                    <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px;">Mot de passe</label>
+                    <input type="password" id="newPassword" placeholder="••••••••" style="width:100%;box-sizing:border-box;">
+                </div>
+                <div style="min-width:120px;">
+                    <label style="font-size:0.75rem;color:var(--text-muted);display:block;margin-bottom:4px;">Rôle</label>
+                    <select id="newUserRole" style="width:100%;box-sizing:border-box;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);padding:8px 10px;border-radius:6px;">
+                        <option value="user">Utilisateur</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button class="modal-btn modal-btn-primary" onclick="createUser()" style="padding:8px 20px;white-space:nowrap;">Créer</button>
+            </div>
+        </div>
+
+        <!-- Users table -->
+        <div id="adminUsersList"></div>
     </div>
 </div>
 
@@ -1733,41 +1780,116 @@ async function logout() {
 // ═══════════════════════════════════════
 // Admin panel
 // ═══════════════════════════════════════
+let _adminModels = [];
+
 async function openAdminPanel() {
-    await refreshAdminUsers();
+    document.getElementById('adminPage').style.display = '';
+    document.querySelector('.sidebar').style.display = 'none';
+    document.querySelector('.chat-area').style.display = 'none';
+    document.getElementById('conversationsPage').classList.remove('visible');
+    document.getElementById('projectPage').classList.remove('visible');
     document.getElementById('newUsername').value = '';
     document.getElementById('newPassword').value = '';
-    document.getElementById('adminModal').classList.add('visible');
+    await refreshAdminUsers();
+}
+
+function closeAdminPage() {
+    document.getElementById('adminPage').style.display = 'none';
+    document.querySelector('.sidebar').style.display = '';
+    document.querySelector('.chat-area').style.display = '';
 }
 
 async function refreshAdminUsers() {
     const data = await api('/api/admin/users');
     const list = document.getElementById('adminUsersList');
-    if (data.error) { list.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
-    list.innerHTML = data.users.map(u => `
-        <div class="admin-user-row">
-            <span class="admin-user-name">${u.username}</span>
-            <span class="admin-user-role">${u.role}</span>
-            ${u.username !== currentUser.username ? `<button class="admin-user-del" onclick="deleteUser('${u.username}')" title="Supprimer">✕</button>` : ''}
+    if (data.error) { list.innerHTML = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`; return; }
+    _adminModels = data.models || [];
+
+    const MODEL_LABELS = {
+        'eu.anthropic.claude-opus-4-6-v1': 'Opus 4.6 EU',
+        'anthropic.claude-opus-4-6-v1': 'Opus 4.6',
+        'eu.anthropic.claude-opus-4-5-20251101-v1:0': 'Opus 4.5 EU',
+        'anthropic.claude-opus-4-5-20251101-v1:0': 'Opus 4.5',
+        'eu.anthropic.claude-sonnet-4-5-20250929-v1:0': 'Sonnet 4.5 EU',
+        'anthropic.claude-sonnet-4-5-20250929-v1:0': 'Sonnet 4.5',
+        'eu.anthropic.claude-haiku-4-5-20251001-v1:0': 'Haiku 4.5 EU',
+        'anthropic.claude-haiku-4-5-20251001-v1:0': 'Haiku 4.5',
+        'us.anthropic.claude-3-5-sonnet-20241022-v2:0': 'Sonnet 3.5 US',
+    };
+
+    const modelOpts = `<option value="">(choix utilisateur)</option>` +
+        _adminModels.map(m => `<option value="${m}">${MODEL_LABELS[m] || m}</option>`).join('');
+
+    list.innerHTML = `
+    <div style="font-size:0.85rem;font-weight:600;color:var(--text-secondary);margin-bottom:12px;">${data.users.length} utilisateur${data.users.length > 1 ? 's' : ''}</div>
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+    ${data.users.map((u, i) => `
+        <div style="padding:16px 20px;${i > 0 ? 'border-top:1px solid var(--border);' : ''}background:var(--bg-secondary);">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div style="min-width:120px;">
+                    <div style="font-weight:600;font-size:0.95rem;">${escapeHtml(u.username)}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);">${u.conv_count} conv · $${u.cost_total}</div>
+                </div>
+                <select onchange="adminUpdateUser('${u.username}','role',this.value)" style="${adminSelectStyle()}">
+                    <option value="user" ${u.role==='user'?'selected':''}>Utilisateur</option>
+                    <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+                </select>
+                <select onchange="adminUpdateUser('${u.username}','forced_model',this.value)" style="${adminSelectStyle()};min-width:160px;">
+                    ${modelOpts.replace(`value="${u.forced_model}"`, `value="${u.forced_model}" selected`)}
+                </select>
+                <select onchange="adminUpdateUser('${u.username}','forced_region',this.value)" style="${adminSelectStyle()}">
+                    <option value="" ${!u.forced_region?'selected':''}>(région utilisateur)</option>
+                    <option value="eu-west-3" ${u.forced_region==='eu-west-3'?'selected':''}>EU Paris</option>
+                    <option value="us-east-1" ${u.forced_region==='us-east-1'?'selected':''}>US East</option>
+                </select>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.82rem;color:var(--text-secondary);white-space:nowrap;">
+                    <input type="checkbox" ${u.pegasus_enabled?'checked':''} onchange="adminUpdateUser('${u.username}','pegasus_enabled',this.checked)" style="accent-color:var(--accent);width:15px;height:15px;">
+                    Pegasus
+                </label>
+                <div style="margin-left:auto;display:flex;gap:8px;">
+                    <button onclick="adminResetPassword('${u.username}')" class="modal-btn modal-btn-cancel" style="font-size:0.75rem;padding:5px 12px;">🔑 MDP</button>
+                    ${u.username !== currentUser?.username ? `<button onclick="deleteUser('${u.username}')" class="modal-btn" style="font-size:0.75rem;padding:5px 12px;background:rgba(255,80,80,0.1);border-color:var(--danger);color:var(--danger);">Supprimer</button>` : ''}
+                </div>
+            </div>
         </div>
-    `).join('');
+    `).join('')}
+    </div>`;
+}
+
+function adminSelectStyle() {
+    return 'background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);padding:6px 10px;border-radius:6px;font-size:0.8rem;cursor:pointer;';
+}
+
+async function adminUpdateUser(username, field, value) {
+    const res = await api(`/api/admin/users/${username}`, 'PUT', { [field]: value });
+    if (res.error) { showToast(res.error, true); await refreshAdminUsers(); }
+}
+
+async function adminResetPassword(username) {
+    const pwd = prompt(`Nouveau mot de passe pour "${username}" :`);
+    if (!pwd) return;
+    const res = await api(`/api/admin/users/${username}/password`, 'PUT', { password: pwd });
+    if (res.error) { showToast(res.error, true); return; }
+    showToast(`Mot de passe de "${username}" mis à jour`);
 }
 
 async function createUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value;
-    if (!username || !password) { alert('Identifiant et mot de passe requis'); return; }
-    const data = await api('/api/admin/users', 'POST', { username, password });
-    if (data.error) { alert(data.error); return; }
+    const role = document.getElementById('newUserRole').value;
+    if (!username || !password) { showToast('Identifiant et mot de passe requis', true); return; }
+    const data = await api('/api/admin/users', 'POST', { username, password, role });
+    if (data.error) { showToast(data.error, true); return; }
     document.getElementById('newUsername').value = '';
     document.getElementById('newPassword').value = '';
+    showToast(`Utilisateur "${username}" créé`);
     await refreshAdminUsers();
 }
 
 async function deleteUser(username) {
     if (!confirm(`Supprimer l'utilisateur "${username}" et toutes ses données ?`)) return;
     const data = await api(`/api/admin/users/${username}`, 'DELETE');
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { showToast(data.error, true); return; }
     await refreshAdminUsers();
 }
 
@@ -2627,15 +2749,77 @@ async function deleteProjectFile(savedAs) {
     if (!confirm('Supprimer ce fichier ?')) return;
     await api(`/api/projects/${currentProjectId}/files/${savedAs}`, 'DELETE');
     const proj = await api(`/api/projects/${currentProjectId}`);
+    const idx = projects.findIndex(p => p.id === currentProjectId);
+    if (idx !== -1) projects[idx] = proj;
     document.getElementById('projectFilesCount').textContent = (proj.files || []).length;
-    if (document.getElementById('projectPage').classList.contains('visible')) {
-        renderProjectPageFiles(proj.files || []);
-    }
-    if (document.getElementById('conversationsPage').classList.contains('visible')) {
-        renderCpFiles(proj.files || []);
+    if (document.getElementById('projectPage').classList.contains('visible')) renderProjectPageFiles(proj.files || []);
+    if (document.getElementById('conversationsPage').classList.contains('visible')) renderCpFiles(proj.files || []);
+    if (document.getElementById('chatFilesPanel').classList.contains('visible')) renderChatFilesPanel(proj.files || []);
+}
+
+
+// ── Panneau fichiers depuis le chat ──
+async function toggleChatFilesPanel() {
+    const panel = document.getElementById('chatFilesPanel');
+    if (panel.classList.contains('visible')) {
+        closeChatFilesPanel();
+    } else {
+        await openChatFilesPanel();
     }
 }
 
+async function openChatFilesPanel() {
+    if (!currentProjectId) return;
+    const proj = projects.find(p => p.id === currentProjectId);
+    document.getElementById('chatFilesProjName').textContent = proj ? proj.name : '';
+    const panel = document.getElementById('chatFilesPanel');
+    panel.classList.add('visible');
+    // Render files using cp-style rendering
+    const files = proj?.files || [];
+    renderChatFilesPanel(files);
+}
+
+function closeChatFilesPanel() {
+    document.getElementById('chatFilesPanel').classList.remove('visible');
+}
+
+function renderChatFilesPanel(files) {
+    const list = document.getElementById('chatFilesPanelList');
+    if (!files.length) {
+        list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.82rem;">Aucun fichier</div>';
+        return;
+    }
+    // Reuse renderCpFiles logic but target chatFilesPanelList
+    const foldersMap = {};
+    files.forEach(f => { const fld = f.folder || ''; (foldersMap[fld] = foldersMap[fld] || []).push(f); });
+    const renderFile = f => {
+        const ext = (f.filename.split('.').pop() || '').toLowerCase();
+        const icon = ext === 'pdf' ? '📕' : ['mp4','mov','avi','mkv','webm'].includes(ext) ? '🎬' : ext === 'md' ? '📓' : '📄';
+        const size = f.size > 1048576 ? (f.size/1048576).toFixed(1)+' Mo' : Math.round(f.size/1024)+' Ko';
+        const noContent = !f.text_preview;
+        const NON_ED = new Set(['.pdf','.docx','.xlsx','.mp4','.mov','.avi','.png','.jpg','.jpeg','.gif']);
+        const isEd = !NON_ED.has('.'+ext) && !noContent;
+        return `<div class="cp-file-item">
+            <span style="font-size:1rem;flex-shrink:0;">${icon}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:0.8rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);">${size}</div>
+            </div>
+            <div style="display:flex;gap:3px;flex-shrink:0;">
+                ${isEd ? `<button class="pp-file-delete" style="font-size:0.68rem;padding:2px 5px;color:var(--accent);border-color:var(--accent);" onclick="openEditFile('${f.saved_as}','${escapeHtml(f.filename)}')">✏️</button>` : ''}
+                <button class="pp-file-delete" style="font-size:0.68rem;padding:2px 5px;" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
+            </div>
+        </div>`;
+    };
+    list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
+        const key = 'cfp:' + fld;
+        const collapsed = !_expandedFolders.has(key);
+        const label = fld ? escapeHtml(fld) : 'Racine';
+        const header = `<div class="folder-header${collapsed?' collapsed':''}" onclick="toggleFolder('${key}',this)">📁 ${label}<span class="folder-chevron">▼</span></div>`;
+        const body = `<div id="fbody-${key}" style="${collapsed?'display:none':''}">${foldersMap[fld].map(renderFile).join('')}</div>`;
+        return header + body;
+    }).join('');
+}
 
 // ── Recherche dans la conversation ──
 let _searchMatches = [];
@@ -2954,7 +3138,10 @@ async function handleProjectFileUploadFromPanel(e) {
     await handleProjectFileUpload(e);
     if (currentProjectId) {
         const proj = await api(`/api/projects/${currentProjectId}`);
+        const idx = projects.findIndex(p => p.id === currentProjectId);
+        if (idx !== -1) projects[idx] = proj;
         renderCpFiles(proj.files || []);
+        if (document.getElementById('chatFilesPanel').classList.contains('visible')) renderChatFilesPanel(proj.files || []);
     }
 }
 
