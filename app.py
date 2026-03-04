@@ -890,6 +890,7 @@ def api_upload():
         "size": os.path.getsize(str(filepath)),
         "uploaded_at": datetime.now().isoformat(),
         "text_preview": text[:200] + "..." if len(text) > 200 else text,
+        "text": text,
     }
     return jsonify(file_info)
 
