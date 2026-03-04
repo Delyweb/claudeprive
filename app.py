@@ -1035,8 +1035,18 @@ def api_project_artifact(project_id):
     filename = data.get("filename", "").strip()
     content = data.get("content", "")
     folder = data.get("folder", "").strip().strip("/")
+    replace = data.get("replace", False)
     if not filename:
         return jsonify({"error": "Nom de fichier requis"}), 400
+
+    # Check for existing file with same name
+    existing = next((f for f in proj.get("files", []) if f.get("filename") == filename), None)
+    if existing and not replace:
+        return jsonify({"conflict": True, "filename": filename}), 409
+
+    # If replacing, remove old file entry (keep disk file, it will be orphaned)
+    if existing and replace:
+        proj["files"] = [f for f in proj["files"] if f.get("filename") != filename]
 
     safe_name = f"{uuid.uuid4().hex[:8]}_{Path(filename).name}"
     filepath = uploads_dir / safe_name

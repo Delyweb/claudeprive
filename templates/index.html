@@ -1551,6 +1551,25 @@
 </div>
 
 <!-- ═══ New File Modal ═══ -->
+<div class="modal-overlay" id="saveArtifactModal">
+    <div class="modal" style="width:420px;">
+        <h3 style="margin-bottom:4px;">Enregistrer dans le projet</h3>
+        <p id="saveArtifactProjName" style="font-size:0.8rem;color:var(--text-muted);margin:0 0 16px;"></p>
+        <label>Nom du fichier</label>
+        <input type="text" id="saveArtifactFilename" placeholder="fichier.yaml">
+        <label style="margin-top:10px;">Dossier <span style="color:var(--text-muted);font-weight:400;">(optionnel)</span></label>
+        <input type="text" id="saveArtifactFolder" list="saveArtifactFoldersList" placeholder="Ex: Automatisations, scripts…">
+        <datalist id="saveArtifactFoldersList"></datalist>
+        <div id="saveArtifactConflict" style="display:none;margin-top:12px;padding:10px 14px;background:rgba(255,180,0,0.12);border:1px solid rgba(255,180,0,0.3);border-radius:8px;font-size:0.83rem;color:#f0b429;">
+            ⚠️ Un fichier avec ce nom existe déjà. Voulez-vous le remplacer ?
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('saveArtifactModal')">Annuler</button>
+            <button id="saveArtifactBtn" class="modal-btn modal-btn-primary" onclick="confirmSaveArtifact(false)">Enregistrer</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="moveFolderModal">
     <div class="modal" style="width:420px;">
         <h3>Déplacer vers un dossier</h3>
@@ -2942,47 +2961,78 @@ function downloadArtifact() {
     URL.revokeObjectURL(url);
 }
 
-async function saveArtifactFromPanel() {
-    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
-    const filename = prompt('Nom du fichier :', `artefact_${Date.now()}.${_apExt}`);
-    if (!filename) return;
-    const btn = document.getElementById('apSaveBtn');
+let _saveArtifactCode = '';
+let _saveArtifactExt = '';
+
+function saveArtifactFromPanel() {
+    if (!currentProjectId) { showToast('Sélectionnez un projet d\'abord.', true); return; }
+    _saveArtifactCode = _apCode;
+    _saveArtifactExt = _apExt;
+    openSaveArtifactModal(`artefact_${Date.now()}.${_apExt}`);
+}
+
+function saveArtifact(btn, ext) {
+    if (!currentProjectId) { showToast('Sélectionnez un projet d\'abord.', true); return; }
+    const block = btn.closest('.artifact-block');
+    _saveArtifactCode = block.querySelector('code').textContent;
+    _saveArtifactExt = ext;
+    openSaveArtifactModal(`artefact_${Date.now()}.${ext}`);
+}
+
+function openSaveArtifactModal(defaultName) {
+    const proj = projects.find(p => p.id === currentProjectId);
+    document.getElementById('saveArtifactProjName').textContent = proj ? `→ ${proj.name}` : '';
+    document.getElementById('saveArtifactFilename').value = defaultName;
+    document.getElementById('saveArtifactFolder').value = currentUploadFolder || '';
+    document.getElementById('saveArtifactConflict').style.display = 'none';
+    document.getElementById('saveArtifactBtn').textContent = 'Enregistrer';
+    document.getElementById('saveArtifactBtn').onclick = () => confirmSaveArtifact(false);
+    // Populate folders datalist
+    const folders = getAllProjectFolders(proj);
+    document.getElementById('saveArtifactFoldersList').innerHTML = folders.map(f => `<option value="${escapeHtml(f)}">`).join('');
+    openModal('saveArtifactModal');
+    document.getElementById('saveArtifactFilename').focus();
+    document.getElementById('saveArtifactFilename').select();
+}
+
+async function confirmSaveArtifact(replace) {
+    if (!currentProjectId) return;
+    const filename = document.getElementById('saveArtifactFilename').value.trim();
+    const folder = document.getElementById('saveArtifactFolder').value.trim().replace(/^\/+|\/+$/g, '');
+    if (!filename) { document.getElementById('saveArtifactFilename').focus(); return; }
+
+    const btn = document.getElementById('saveArtifactBtn');
     btn.disabled = true;
     btn.textContent = '⏳';
-    try {
-        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content: _apCode });
-        if (res.error) { alert(res.error); btn.disabled = false; btn.textContent = '💾 Projet'; return; }
-        btn.textContent = '✓ Enregistré';
-        document.getElementById('projectFilesCount').textContent = res.file_count;
-        setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Projet'; }, 2000);
-    } catch (err) {
-        alert(err.message);
+
+    const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', {
+        filename, content: _saveArtifactCode, folder, replace
+    });
+
+    if (res.conflict) {
+        // Show conflict warning, change button to "Remplacer"
+        document.getElementById('saveArtifactConflict').style.display = '';
         btn.disabled = false;
-        btn.textContent = '💾 Projet';
+        btn.textContent = 'Remplacer';
+        btn.onclick = () => confirmSaveArtifact(true);
+        return;
+    }
+    if (res.error) { showToast(res.error, true); btn.disabled = false; btn.textContent = 'Enregistrer'; return; }
+
+    closeModal('saveArtifactModal');
+    document.getElementById('projectFilesCount').textContent = res.file_count;
+    showToast(`✓ "${filename}" enregistré dans le projet`);
+    // Refresh file panels
+    const updatedProj = await api(`/api/projects/${currentProjectId}`);
+    if (!updatedProj.error) {
+        const idx = projects.findIndex(p => p.id === currentProjectId);
+        if (idx !== -1) projects[idx] = updatedProj;
+        if (document.getElementById('projectPage').classList.contains('visible')) renderProjectPageFiles(updatedProj.files || []);
+        if (document.getElementById('conversationsPage').classList.contains('visible')) renderCpFiles(updatedProj.files || []);
     }
 }
 
-async function saveArtifact(btn, ext) {
-    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
-    const block = btn.closest('.artifact-block');
-    const code = block.querySelector('code').textContent;
-    const filename = prompt('Nom du fichier à enregistrer :', `artefact_${Date.now()}.${ext}`);
-    if (!filename) return;
-    btn.disabled = true;
-    btn.textContent = '⏳';
-    try {
-        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content: code });
-        if (res.error) { alert(res.error); return; }
-        btn.textContent = '✓ Enregistré';
-        btn.style.background = 'var(--accent)';
-        btn.style.color = 'var(--bg-primary)';
-        document.getElementById('projectFilesCount').textContent = res.file_count;
-    } catch (err) {
-        alert('Erreur : ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Enregistrer dans le projet';
-    }
-}
+
 </script>
 
 </body>
