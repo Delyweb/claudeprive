@@ -1551,6 +1551,19 @@
 </div>
 
 <!-- ═══ New File Modal ═══ -->
+<div class="modal-overlay" id="moveFolderModal">
+    <div class="modal" style="width:420px;">
+        <h3>Déplacer vers un dossier</h3>
+        <div id="moveFolderExisting" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+        <label>Ou saisir un nom de dossier</label>
+        <input type="text" id="moveFolderInput" placeholder="Laisser vide = racine">
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('moveFolderModal')">Annuler</button>
+            <button class="modal-btn modal-btn-primary" onclick="confirmMoveFolder()">Déplacer</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="newFileModal">
     <div class="modal" style="width:560px;">
         <h3>Nouveau fichier</h3>
@@ -2551,16 +2564,46 @@ function createFolder() {
     setTimeout(() => notif.remove(), 4000);
 }
 
-async function moveFileToFolder(savedAs, currentFolder) {
+let _moveFolderSavedAs = null;
+
+function moveFileToFolder(savedAs, currentFolder) {
     if (!currentProjectId) return;
+    _moveFolderSavedAs = savedAs;
     const proj = projects.find(p => p.id === currentProjectId);
     const folders = getProjectFolders(proj?.files || []);
-    const folderList = folders.length ? '\n\nDossiers existants : ' + folders.join(', ') : '';
-    const input = prompt(`Déplacer vers quel dossier ? (laisser vide = racine)${folderList}`, currentFolder);
-    if (input === null) return; // annulé
-    const folder = input.trim().replace(/^\/+|\/+$/g, '');
+
+    // Populate folder buttons
+    const container = document.getElementById('moveFolderExisting');
+    container.innerHTML = '';
+    // Racine button
+    const rootBtn = document.createElement('button');
+    rootBtn.textContent = '📂 Racine';
+    rootBtn.className = 'modal-btn modal-btn-cancel';
+    rootBtn.style.cssText = 'font-size:0.8rem;padding:4px 10px;';
+    rootBtn.onclick = () => { document.getElementById('moveFolderInput').value = ''; confirmMoveFolder(); };
+    container.appendChild(rootBtn);
+    // Existing folders
+    folders.forEach(f => {
+        const btn = document.createElement('button');
+        btn.textContent = '📁 ' + f;
+        btn.className = 'modal-btn modal-btn-cancel';
+        btn.style.cssText = 'font-size:0.8rem;padding:4px 10px;';
+        btn.onclick = () => { document.getElementById('moveFolderInput').value = f; confirmMoveFolder(); };
+        container.appendChild(btn);
+    });
+
+    document.getElementById('moveFolderInput').value = currentFolder || '';
+    openModal('moveFolderModal');
+    document.getElementById('moveFolderInput').focus();
+}
+
+async function confirmMoveFolder() {
+    const savedAs = _moveFolderSavedAs;
+    if (!savedAs || !currentProjectId) return;
+    const folder = document.getElementById('moveFolderInput').value.trim().replace(/^\/+|\/+$/g, '');
+    closeModal('moveFolderModal');
     const res = await api(`/api/projects/${currentProjectId}/files/${savedAs}/folder`, 'PUT', { folder });
-    if (res.error) { alert(res.error); return; }
+    if (res.error) { showToast('Erreur : ' + res.error, true); return; }
     const updatedProj = await api(`/api/projects/${currentProjectId}`);
     if (document.getElementById('projectPage').classList.contains('visible')) {
         renderProjectPageFiles(updatedProj.files || []);
@@ -2568,7 +2611,6 @@ async function moveFileToFolder(savedAs, currentFolder) {
     if (document.getElementById('conversationsPage').classList.contains('visible')) {
         renderCpFiles(updatedProj.files || []);
     }
-    // Mettre à jour projects local
     const idx = projects.findIndex(p => p.id === currentProjectId);
     if (idx !== -1) projects[idx] = updatedProj;
 }
@@ -2769,41 +2811,36 @@ function escapeHtml(str) {
 function formatMessage(text) {
     if (!text) return '';
 
-    // Artefacts : blocs de code avec langage → artifact-block avec bouton Ouvrir dans le panneau
-    let html = text.replace(/```([\w.+-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-        const safeLang = escapeHtml(lang || 'texte');
-        const rawCode = code.trimEnd();
-        const safeCode = escapeHtml(rawCode);
-        const extMap = { python:'py', javascript:'js', js:'js', html:'html', css:'css',
-            bash:'sh', sh:'sh', sql:'sql', json:'json', yaml:'yml', yml:'yml', markdown:'md', md:'md' };
-        const ext = extMap[(lang||'').toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
-        // Stocker le code brut dans un attribut data encodé en base64
-        const b64 = btoa(unescape(encodeURIComponent(rawCode)));
-        return `<div class="artifact-block">
-            <div class="artifact-header">
-                <span class="artifact-lang">${safeLang}</span>
-                <button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button>
-            </div>
-            <div class="artifact-body"><pre><code>${safeCode}</code></pre></div>
-        </div>`;
-    });
+    const extMap = { python:'py', javascript:'js', js:'js', html:'html', css:'css',
+        bash:'sh', sh:'sh', sql:'sql', json:'json', yaml:'yml', yml:'yml', markdown:'md', md:'md' };
 
-    // Escape remaining text (outside code blocks)
-    // Re-parse: split by artifact-block divs (already HTML), escape rest
-    // Simpler: process non-code parts
-    const parts = html.split(/(<div class="artifact-block">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>)/);
-    html = parts.map((part, i) => {
-        if (i % 2 === 1) return part; // artifact HTML — leave as-is
-        // Escape then apply inline markdown
-        let p = escapeHtml(part);
-        p = p.replace(/`([^`]+)`/g, '<code>$1</code>');
+    function renderText(raw) {
+        let p = escapeHtml(raw);
+        p = p.replace(/`([^`\n]+)`/g, '<code>$1</code>');
         p = p.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
         p = p.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
         p = p.replace(/\n/g, '<br>');
         return p;
-    }).join('');
+    }
 
-    return html;
+    function renderArtifact(lang, code) {
+        const rawCode = code.trimEnd();
+        const safeLang = escapeHtml(lang || 'texte');
+        const safeCode = escapeHtml(rawCode);
+        const ext = extMap[(lang||'').toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
+        const b64 = btoa(unescape(encodeURIComponent(rawCode)));
+        return `<div class="artifact-block"><div class="artifact-header"><span class="artifact-lang">${safeLang}</span><button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button></div><div class="artifact-body"><pre><code>${safeCode}</code></pre></div></div>`;
+    }
+
+    const codeBlockRegex = /```([\w.+-]*)\n([\s\S]*?)```/g;
+    let result = '', lastIndex = 0, match;
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) result += renderText(text.slice(lastIndex, match.index));
+        result += renderArtifact(match[1], match[2]);
+        lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) result += renderText(text.slice(lastIndex));
+    return result;
 }
 
 // ═══════════════════════════════════════
