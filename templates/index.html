@@ -1303,6 +1303,7 @@
             <button id="apTabPreview" class="ap-tab" onclick="setArtifactTab('preview')" style="display:none">Aperçu</button>
             <span id="apLang" style="font-size:0.78rem;color:var(--accent);font-weight:600;margin-left:4px;"></span>
             <div style="display:flex;gap:6px;margin-left:auto;">
+                <button id="apCopyBtn" class="ap-action-btn" onclick="copyArtifact()" title="Copier">📋 Copier</button>
                 <button class="ap-action-btn" onclick="printArtifact()" title="Imprimer">🖨️</button>
                 <button class="ap-action-btn" onclick="downloadArtifact()" title="Télécharger">⬇️</button>
                 <button id="apSaveBtn" class="ap-action-btn" onclick="saveArtifactFromPanel()">💾 Projet</button>
@@ -2680,6 +2681,17 @@ function printArtifact() {
         w.document.write(`<pre style="font-family:monospace;padding:20px;">${escapeHtml(_apCode)}</pre>`);
         w.document.close();
         w.print();
+    }
+}
+
+async function copyArtifact() {
+    try {
+        await navigator.clipboard.writeText(_apCode);
+        const btn = document.getElementById('apCopyBtn');
+        btn.textContent = '✓ Copié';
+        setTimeout(() => { btn.textContent = '📋 Copier'; }, 2000);
+    } catch(e) {
+        alert('Impossible de copier dans le presse-papiers.');
     }
 }
 
