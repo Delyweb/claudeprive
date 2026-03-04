@@ -2550,18 +2550,22 @@ async function reextractFile(savedAs, btn) {
     }
 }
 
-function createFolder() {
+async function createFolder() {
     if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
     const name = prompt('Nom du nouveau dossier :');
     if (!name || !name.trim()) return;
     const folder = name.trim().replace(/^\/+|\/+$/g, '');
+    // Persist folder server-side
+    const res = await api(`/api/projects/${currentProjectId}/folders`, 'POST', { folder });
+    if (!res.error) {
+        const idx = projects.findIndex(p => p.id === currentProjectId);
+        if (idx !== -1) {
+            projects[idx].folders = res.folders;
+            populateFolderDatalist(projects[idx].files || []);
+        }
+    }
     syncFolderInputs(folder);
-    // Feedback visuel
-    const notif = document.createElement('div');
-    notif.textContent = `📁 Dossier "${folder}" actif — uploadez ou créez un fichier pour l'y placer`;
-    notif.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--accent);color:#0f1117;padding:12px 18px;border-radius:8px;z-index:9999;font-size:13px;max-width:340px;';
-    document.body.appendChild(notif);
-    setTimeout(() => notif.remove(), 4000);
+    showToast(`Dossier "${folder}" créé`);
 }
 
 let _moveFolderSavedAs = null;
@@ -2570,7 +2574,7 @@ function moveFileToFolder(savedAs, currentFolder) {
     if (!currentProjectId) return;
     _moveFolderSavedAs = savedAs;
     const proj = projects.find(p => p.id === currentProjectId);
-    const folders = getProjectFolders(proj?.files || []);
+    const folders = getAllProjectFolders(proj);
 
     // Populate folder buttons
     const container = document.getElementById('moveFolderExisting');
@@ -2629,8 +2633,15 @@ function getProjectFolders(files) {
     return [...set].sort();
 }
 
+function getAllProjectFolders(proj) {
+    const set = new Set(getProjectFolders(proj?.files || []));
+    (proj?.folders || []).forEach(f => { if (f) set.add(f); });
+    return [...set].sort();
+}
+
 function populateFolderDatalist(files) {
-    const folders = getProjectFolders(files);
+    const proj = projects.find(p => p.id === currentProjectId);
+    const folders = getAllProjectFolders(proj || { files });
     const opts = folders.map(f => `<option value="${escapeHtml(f)}">`).join('');
     ['cpFoldersList', 'ppFoldersList', 'newFileFoldersList'].forEach(id => {
         const el = document.getElementById(id);

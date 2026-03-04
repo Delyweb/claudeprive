@@ -907,10 +907,36 @@ def api_project_file_move_folder(project_id, saved_as):
     for fi in proj.get("files", []):
         if fi["saved_as"] == saved_as:
             fi["folder"] = folder
+            # Also persist folder name in project's explicit folders list
+            if folder:
+                known = proj.get("folders", [])
+                if folder not in known:
+                    known.append(folder)
+                    proj["folders"] = known
             proj["updated_at"] = datetime.now().isoformat()
             save_project(project_id, proj, u)
             return jsonify({"ok": True, "folder": folder})
     return jsonify({"error": "Fichier introuvable"}), 404
+
+
+@app.route("/api/projects/<project_id>/folders", methods=["POST"])
+@login_required
+def api_project_add_folder(project_id):
+    u = get_current_user()
+    proj = get_project(project_id, u)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    folder = data.get("folder", "").strip().strip("/")
+    if not folder:
+        return jsonify({"error": "Nom de dossier invalide"}), 400
+    known = proj.get("folders", [])
+    if folder not in known:
+        known.append(folder)
+        proj["folders"] = known
+        proj["updated_at"] = datetime.now().isoformat()
+        save_project(project_id, proj, u)
+    return jsonify({"ok": True, "folders": proj.get("folders", [])})
 
 
 @app.route("/api/projects/<project_id>/journal", methods=["POST"])
