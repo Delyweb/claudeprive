@@ -64,20 +64,28 @@ def migrate_existing_data(username):
 
 
 def init_admin():
-    """Crée l'admin au premier démarrage si users.json n'existe pas."""
-    if USERS_FILE.exists():
-        return
+    """Crée l'admin au premier démarrage, ou met à jour son mot de passe si ADMIN_PASSWORD a changé."""
     admin_password = os.environ.get("ADMIN_PASSWORD", "changeme")
-    users = {
-        "delyweb": {
-            "password_hash": generate_password_hash(admin_password),
-            "role": "admin",
-            "created_at": datetime.now().isoformat()
+    if not USERS_FILE.exists():
+        users = {
+            "delyweb": {
+                "password_hash": generate_password_hash(admin_password),
+                "role": "admin",
+                "created_at": datetime.now().isoformat()
+            }
         }
-    }
-    save_users(users)
-    migrate_existing_data("delyweb")
-    print(f"[AUTH] Admin 'delyweb' créé avec le mot de passe ADMIN_PASSWORD.")
+        save_users(users)
+        migrate_existing_data("delyweb")
+        print("[AUTH] Admin 'delyweb' créé.")
+    else:
+        # Si ADMIN_PASSWORD est défini et différent du hash stocké, mettre à jour
+        if admin_password != "changeme":
+            users = load_users()
+            if "delyweb" in users:
+                if not check_password_hash(users["delyweb"]["password_hash"], admin_password):
+                    users["delyweb"]["password_hash"] = generate_password_hash(admin_password)
+                    save_users(users)
+                    print("[AUTH] Mot de passe admin 'delyweb' mis à jour depuis ADMIN_PASSWORD.")
 
 
 def is_admin(username):
