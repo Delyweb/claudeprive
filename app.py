@@ -1156,6 +1156,8 @@ def api_update_project(project_id):
         proj["name"] = data["name"]
     if "description" in data:
         proj["description"] = data["description"]
+    if "default_prompt_id" in data:
+        proj["default_prompt_id"] = data["default_prompt_id"]
     proj["updated_at"] = datetime.now().isoformat()
     save_project(project_id, proj)
     return jsonify({"id": project_id, **proj})
