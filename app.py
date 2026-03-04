@@ -317,9 +317,11 @@ STYLE DE RÉPONSE — règles absolues :
 
 ARTEFACTS — règles absolues :
 - Tout code doit TOUJOURS être dans un bloc fencé avec le langage correct : ```python, ```javascript, ```html, ```css, ```sql, ```yaml, ```json, ```bash, ```markdown, etc. Sans exception.
+- Tout email, courrier ou message rédigé doit également être dans un bloc fencé ```markdown (jamais en texte brut dans la réponse).
 - Tout document ou fichier complet (page HTML, script, configuration, template, rapport Markdown) doit être dans un bloc fencé pour être affiché dans le panneau artefact.
 - Les variables ou expressions courtes peuvent utiliser des `backticks` inline, mais tout bloc de code de 2 lignes ou plus va obligatoirement en bloc fencé.
-- N'écris jamais de code en dehors d'un bloc fencé.
+- N'écris JAMAIS de code ou d'email en dehors d'un bloc fencé — même un court extrait.
+- Si le contenu est trop long pour un seul bloc, découpe-le en plusieurs blocs fencés successifs clairement nommés (ex : `Partie 1/3`, `Partie 2/3`, etc.).
 """
 
 DEFAULT_PROMPTS = [
