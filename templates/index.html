@@ -538,24 +538,54 @@
         .artifact-panel-iframe.visible { display: block; }
 
         .chat-header {
-            padding: 16px 24px;
+            padding: 10px 16px;
             border-bottom: 1px solid var(--border);
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 8px;
             background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+        .chat-header-row1 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .chat-header-row2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .chat-header-title {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .chat-header-model {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-muted);
             background: var(--bg-tertiary);
-            padding: 4px 10px;
+            padding: 3px 10px;
             border-radius: 20px;
+            flex-shrink: 0;
         }
+        .chat-search-input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-search-input:focus { border-color: var(--accent); }
+        .chat-search-input::placeholder { color: var(--text-muted); }
+        .msg-highlight { background: rgba(99,179,237,0.25); border-radius: 3px; }
 
         /* Messages */
         .messages {
@@ -1300,18 +1330,22 @@
     <!-- Chat principal -->
     <div class="chat-main">
         <div class="chat-header">
-            <div style="display:flex; align-items:center; gap:12px;">
+            <div class="chat-header-row1">
                 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+                <button id="chatBackBtn" class="prompt-btn-sm" onclick="openConversationsPage()" title="Retour aux conversations du projet" style="display:none;font-size:0.78rem;padding:3px 10px;color:var(--accent);">← Projet</button>
                 <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
+                <button id="chatFilesBtn" class="prompt-btn-sm" onclick="openProjectPage()" title="Voir les fichiers du projet" style="display:none;font-size:0.78rem;padding:3px 10px;">📁 Fichiers</button>
                 <span class="chat-header-model" id="chatModel">Sonnet</span>
-                <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:4px 12px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem; transition:all 0.2s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='none'">Admin</button>
-                <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-muted);">
-                    <span>👤</span>
+                <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:3px 10px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem;">Admin</button>
+                <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:var(--text-muted);flex-shrink:0;">
                     <span id="userBarName" style="color:var(--text-secondary);"></span>
-                    <button onclick="logout()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.78rem; padding:2px 6px; border-radius:4px; transition:color 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">Déconnexion</button>
+                    <button onclick="logout()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.78rem;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">Déco</button>
                 </div>
+            </div>
+            <div class="chat-header-row2">
+                <input type="search" id="chatSearchInput" class="chat-search-input" placeholder="🔍 Rechercher dans la conversation…" oninput="searchInConversation(this.value)">
+                <button id="chatSearchClear" onclick="clearConvSearch()" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:0 4px;" title="Effacer">✕</button>
+                <span id="chatSearchCount" style="font-size:0.75rem;color:var(--text-muted);white-space:nowrap;"></span>
             </div>
         </div>
 
@@ -2231,6 +2265,10 @@ async function selectProject(id) {
         document.getElementById('cpSubtitle').textContent = '';
         filesCol.classList.remove('visible');
     }
+    // Show/hide project shortcuts in chat header
+    const hasProj = !!id;
+    document.getElementById('chatBackBtn').style.display = hasProj ? '' : 'none';
+    document.getElementById('chatFilesBtn').style.display = hasProj ? '' : 'none';
 
     document.getElementById('cpSearch').value = '';
     await loadConversations();
@@ -2597,6 +2635,67 @@ async function deleteProjectFile(savedAs) {
     }
 }
 
+
+// ── Recherche dans la conversation ──
+let _searchMatches = [];
+let _searchIndex = -1;
+
+function searchInConversation(query) {
+    const clearBtn = document.getElementById('chatSearchClear');
+    const countEl = document.getElementById('chatSearchCount');
+    // Remove previous highlights
+    document.querySelectorAll('.msg-highlight').forEach(el => {
+        el.outerHTML = el.textContent;
+    });
+    _searchMatches = [];
+    if (!query.trim()) {
+        clearBtn.style.display = 'none';
+        countEl.textContent = '';
+        return;
+    }
+    clearBtn.style.display = '';
+    const q = query.toLowerCase();
+    const msgs = document.querySelectorAll('#messagesContainer .message-content');
+    msgs.forEach(msg => {
+        const text = msg.textContent;
+        if (text.toLowerCase().includes(q)) {
+            // Highlight all occurrences in text nodes
+            highlightText(msg, q);
+            _searchMatches.push(...msg.querySelectorAll('.msg-highlight'));
+        }
+    });
+    if (_searchMatches.length > 0) {
+        _searchIndex = 0;
+        _searchMatches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        countEl.textContent = `1 / ${_searchMatches.length}`;
+    } else {
+        countEl.textContent = 'Aucun résultat';
+    }
+}
+
+function highlightText(node, query) {
+    if (node.nodeType === 3) { // text node
+        const idx = node.textContent.toLowerCase().indexOf(query);
+        if (idx === -1) return;
+        const before = document.createTextNode(node.textContent.slice(0, idx));
+        const mark = document.createElement('mark');
+        mark.className = 'msg-highlight';
+        mark.textContent = node.textContent.slice(idx, idx + query.length);
+        const after = document.createTextNode(node.textContent.slice(idx + query.length));
+        node.parentNode.replaceChild(after, node);
+        node.parentNode.insertBefore(mark, after);
+        node.parentNode.insertBefore(before, mark);
+        // Continue after the replaced node
+        highlightText(after, query);
+    } else if (node.nodeType === 1 && !['SCRIPT','STYLE','CODE','PRE'].includes(node.tagName)) {
+        [...node.childNodes].forEach(child => highlightText(child, query));
+    }
+}
+
+function clearConvSearch() {
+    document.getElementById('chatSearchInput').value = '';
+    searchInConversation('');
+}
 
 // ── Folders collapse state ──
 const _collapsedFolders = new Set();
