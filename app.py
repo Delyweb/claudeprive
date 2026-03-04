@@ -744,51 +744,64 @@ def api_chat():
                 project_context += f"Description : {proj['description']}\n"
             files = proj.get("files", [])
             if files:
-                project_context += f"\nFichiers disponibles dans ce projet ({len(files)}) :\n"
+                # Grouper par dossier
+                folders_map = {}
                 for f in files:
-                    status = f.get("status", "ready")
-                    project_context += f"  - {f['filename']} ({status})\n"
+                    fld = f.get("folder", "") or ""
+                    folders_map.setdefault(fld, []).append(f)
+
+                project_context += f"\nFichiers disponibles dans ce projet ({len(files)}) :\n"
+                for fld in sorted(folders_map.keys()):
+                    label = f"Dossier \"{fld}\"" if fld else "Racine"
+                    project_context += f"{label} :\n"
+                    for f in folders_map[fld]:
+                        status = f.get("status", "ready")
+                        ref = f"{fld}/{f['filename']}" if fld else f['filename']
+                        project_context += f"  - {ref} ({status})\n"
+
                 project_context += "\n--- CONTENU DES DOCUMENTS ---\n"
                 has_content = False
-                for file in files:
-                    saved_as = file.get("saved_as")
-                    if not saved_as:
-                        continue
-                    if file.get("status") == "processing":
-                        project_context += f"\n[{file['filename']}] : analyse en cours, contenu non disponible.\n"
-                        continue
-                    txt_path = uploads_dir / (saved_as + ".txt")
-                    if txt_path.exists():
-                        try:
-                            file_text = txt_path.read_text(encoding="utf-8")
-                            print(f"[DEBUG] Injection {file['filename']} ({len(file_text)} chars)")
-                            if len(file_text) > 50000:
-                                file_text = file_text[:50000] + "\n...[Tronqué à 50000 chars]..."
-                            project_context += f"\n[{file['filename']}]\n{file_text}\n"
-                            has_content = True
-                        except Exception as e:
-                            print(f"[ERREUR] Lecture contexte {saved_as}: {e}")
-                            project_context += f"\n[{file['filename']}] : erreur de lecture ({e}).\n"
-                    else:
-                        # Fallback : lire le fichier original si c'est un format texte natif
-                        original_path = uploads_dir / saved_as
-                        text_exts = {".md", ".txt", ".csv", ".json", ".xml", ".html",
-                                     ".py", ".js", ".yml", ".yaml"}
-                        if original_path.exists() and Path(saved_as).suffix.lower() in text_exts:
+                for fld in sorted(folders_map.keys()):
+                    for file in folders_map[fld]:
+                        saved_as = file.get("saved_as")
+                        if not saved_as:
+                            continue
+                        ref = f"{fld}/{file['filename']}" if fld else file['filename']
+                        if file.get("status") == "processing":
+                            project_context += f"\n[{ref}] : analyse en cours, contenu non disponible.\n"
+                            continue
+                        txt_path = uploads_dir / (saved_as + ".txt")
+                        if txt_path.exists():
                             try:
-                                file_text = original_path.read_text(encoding="utf-8", errors="replace").strip()
-                                txt_path.write_text(file_text, encoding="utf-8")  # crée le .txt pour la prochaine fois
-                                print(f"[DEBUG] Fallback lecture directe {file['filename']} ({len(file_text)} chars)")
+                                file_text = txt_path.read_text(encoding="utf-8")
+                                print(f"[DEBUG] Injection {ref} ({len(file_text)} chars)")
                                 if len(file_text) > 50000:
                                     file_text = file_text[:50000] + "\n...[Tronqué à 50000 chars]..."
-                                project_context += f"\n[{file['filename']}]\n{file_text}\n"
+                                project_context += f"\n[{ref}]\n{file_text}\n"
                                 has_content = True
                             except Exception as e:
-                                print(f"[ERREUR] Fallback lecture {saved_as}: {e}")
-                                project_context += f"\n[{file['filename']}] : erreur de lecture ({e}).\n"
+                                print(f"[ERREUR] Lecture contexte {saved_as}: {e}")
+                                project_context += f"\n[{ref}] : erreur de lecture ({e}).\n"
                         else:
-                            print(f"[DEBUG] .txt manquant pour {file['filename']} ({saved_as})")
-                            project_context += f"\n[{file['filename']}] : contenu non disponible.\n"
+                            original_path = uploads_dir / saved_as
+                            text_exts = {".md", ".txt", ".csv", ".json", ".xml", ".html",
+                                         ".py", ".js", ".yml", ".yaml"}
+                            if original_path.exists() and Path(saved_as).suffix.lower() in text_exts:
+                                try:
+                                    file_text = original_path.read_text(encoding="utf-8", errors="replace").strip()
+                                    txt_path.write_text(file_text, encoding="utf-8")
+                                    print(f"[DEBUG] Fallback lecture directe {ref} ({len(file_text)} chars)")
+                                    if len(file_text) > 50000:
+                                        file_text = file_text[:50000] + "\n...[Tronqué à 50000 chars]..."
+                                    project_context += f"\n[{ref}]\n{file_text}\n"
+                                    has_content = True
+                                except Exception as e:
+                                    print(f"[ERREUR] Fallback lecture {saved_as}: {e}")
+                                    project_context += f"\n[{ref}] : erreur de lecture ({e}).\n"
+                            else:
+                                print(f"[DEBUG] .txt manquant pour {ref} ({saved_as})")
+                                project_context += f"\n[{ref}] : contenu non disponible.\n"
+
                 final_system_prompt += project_context
                 if has_content:
                     final_system_prompt += "\nINSTRUCTIONS : Utilise les documents ci-dessus comme contexte principal. Si une information n'est pas dans les documents, dis-le clairement sans inventer."
@@ -976,6 +989,7 @@ def api_project_artifact(project_id):
     data = request.get_json(silent=True) or {}
     filename = data.get("filename", "").strip()
     content = data.get("content", "")
+    folder = data.get("folder", "").strip().strip("/")
     if not filename:
         return jsonify({"error": "Nom de fichier requis"}), 400
 
@@ -987,6 +1001,7 @@ def api_project_artifact(project_id):
     file_info = {
         "filename": filename,
         "saved_as": safe_name,
+        "folder": folder,
         "size": len(content.encode()),
         "uploaded_at": datetime.now().isoformat(),
         "text_preview": content[:200] + "..." if len(content) > 200 else content,
@@ -1024,9 +1039,11 @@ def api_project_upload(project_id):
     VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
     is_video = ext in VIDEO_EXTS
 
+    folder = request.form.get("folder", "").strip().strip("/")
     file_info = {
         "filename": f.filename,
         "saved_as": safe_name,
+        "folder": folder,
         "size": os.path.getsize(str(filepath)),
         "uploaded_at": datetime.now().isoformat(),
         "status": "processing" if is_video else "ready",
@@ -1116,9 +1133,11 @@ def api_project_upload_complete(project_id):
     filepath = uploads_dir / safe_name
     filepath.touch()
 
+    folder = data.get("folder", "").strip().strip("/")
     file_info = {
         "filename": filename,
         "saved_as": safe_name,
+        "folder": folder,
         "size": size,
         "uploaded_at": datetime.now().isoformat(),
         "status": "processing",

@@ -990,6 +990,33 @@
         .cp-conv-btn:hover { color: var(--danger); border-color: var(--danger); background: rgba(231,76,111,0.1); }
         .cp-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 0.9rem; }
 
+        .folder-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            padding: 10px 4px 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 4px;
+        }
+        .folder-header:first-child { padding-top: 2px; }
+        .folder-input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 5px 8px;
+            font-size: 0.78rem;
+            font-family: inherit;
+        }
+        .folder-input:focus { outline: none; border-color: var(--accent); }
+        .folder-input::placeholder { color: var(--text-muted); }
+
         /* ═══ Project Page ═══ */
         .project-page {
             display: none;
@@ -1342,7 +1369,13 @@
                 <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
                 <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
             </div>
-            <div style="display:flex;gap:6px;padding:8px 8px 0;">
+            <div style="padding:8px 8px 0;">
+                <input type="text" id="cpFolderInput" class="folder-input" list="cpFoldersList"
+                       placeholder="📁 Dossier cible (optionnel)"
+                       oninput="syncFolderInputs(this.value)">
+                <datalist id="cpFoldersList"></datalist>
+            </div>
+            <div style="display:flex;gap:6px;padding:6px 8px 0;">
                 <div class="cp-files-upload-zone" style="flex:1;margin:0;"
                      onclick="document.getElementById('cpFileInput').click()"
                      ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -1376,6 +1409,13 @@
         </div>
     </div>
     <div class="project-page-body">
+        <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:0.82rem;color:var(--text-muted);white-space:nowrap;">📁 Dossier cible :</span>
+            <input type="text" id="ppFolderInput" class="folder-input" list="ppFoldersList"
+                   placeholder="laisser vide = racine"
+                   oninput="syncFolderInputs(this.value)">
+            <datalist id="ppFoldersList"></datalist>
+        </div>
         <div class="pp-upload-zone" id="ppUploadZone"
              onclick="document.getElementById('ppFileInput').click()"
              ondragover="ppHandleDragOver(event)"
@@ -1514,6 +1554,9 @@
         <h3>Nouveau fichier</h3>
         <label>Nom du fichier</label>
         <input type="text" id="newFileName" placeholder="Ex: email.md, script.py, config.json">
+        <label>Dossier (optionnel)</label>
+        <input type="text" id="newFileFolder" list="newFileFoldersList" placeholder="Ex: traces, contrats, scripts">
+        <datalist id="newFileFoldersList"></datalist>
         <label>Contenu</label>
         <textarea id="newFileContent" placeholder="Coller ou saisir le contenu ici..." rows="12" style="font-family:'SF Mono','Fira Code',monospace;font-size:0.85rem;"></textarea>
         <div class="modal-actions">
@@ -1529,6 +1572,7 @@
 // ═══════════════════════════════════════
 let conversations = [];
 let currentConvId = null;
+let currentUploadFolder = '';
 let contextConvId = null; // ID de la conv pour le menu contextuel
 let prompts = [];
 let settings = {};
@@ -2185,12 +2229,19 @@ let _videoPollingInterval = null;
 function renderProjectPageFiles(files) {
     document.getElementById('ppFilesTitle').textContent = `Fichiers (${files.length})`;
     document.getElementById('projectFilesCount').textContent = files.length;
+    populateFolderDatalist(files);
     const list = document.getElementById('ppFilesList');
     if (files.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Aucun fichier dans ce projet</div>';
         return;
     }
-    list.innerHTML = files.map(f => {
+    // Grouper par dossier
+    const foldersMap = {};
+    files.forEach(f => {
+        const fld = f.folder || '';
+        (foldersMap[fld] = foldersMap[fld] || []).push(f);
+    });
+    const renderFile = f => {
         const ext = (f.filename.split('.').pop() || '').toLowerCase();
         const icon = ext === 'pdf' ? '📕' : ext === 'docx' ? '📝' : ext === 'md' ? '📓'
             : ['mp4','mov','avi','mkv','webm'].includes(ext) ? '🎬' : '📄';
@@ -2198,8 +2249,7 @@ function renderProjectPageFiles(files) {
         const date = f.uploaded_at ? new Date(f.uploaded_at).toLocaleDateString('fr-FR') : '';
         const preview = f.text_preview ? escapeHtml(f.text_preview) : '';
         if (f.status === 'processing') {
-            return `
-            <div class="pp-file-item" data-saved-as="${f.saved_as}">
+            return `<div class="pp-file-item" data-saved-as="${f.saved_as}">
                 <span class="pp-file-icon">⏳</span>
                 <div class="pp-file-info">
                     <div class="pp-file-name">${escapeHtml(f.filename)}</div>
@@ -2209,8 +2259,7 @@ function renderProjectPageFiles(files) {
             </div>`;
         }
         const noContent = !f.text_preview;
-        return `
-            <div class="pp-file-item" id="ppfile-${f.saved_as}">
+        return `<div class="pp-file-item" id="ppfile-${f.saved_as}">
                 <span class="pp-file-icon">${icon}</span>
                 <div class="pp-file-info">
                     <div class="pp-file-name">${escapeHtml(f.filename)}</div>
@@ -2222,6 +2271,10 @@ function renderProjectPageFiles(files) {
                     <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
                 </div>
             </div>`;
+    };
+    list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
+        const header = `<div class="folder-header" style="margin-top:8px;">📁 ${fld ? escapeHtml(fld) : 'Racine'}</div>`;
+        return header + foldersMap[fld].map(renderFile).join('');
     }).join('');
 
     // Lancer le polling si des vidéos sont en cours d'analyse
@@ -2413,7 +2466,8 @@ async function handleVideoUploadS3(file) {
             s3_key: urlData.s3_key,
             safe_name: urlData.safe_name,
             filename: urlData.filename,
-            size: file.size
+            size: file.size,
+            folder: currentUploadFolder
         });
     } catch (err) { alert('Erreur : ' + err.message); return; }
 
@@ -2432,6 +2486,7 @@ async function handleVideoUploadS3(file) {
 async function handleRegularUpload(file) {
     const formData = new FormData();
     formData.append('file', file);
+    if (currentUploadFolder) formData.append('folder', currentUploadFolder);
     try {
         const res = await fetch(`/api/projects/${currentProjectId}/upload`, { method: 'POST', body: formData });
         const data = await res.json();
@@ -2479,10 +2534,36 @@ async function reextractFile(savedAs, btn) {
     }
 }
 
+function syncFolderInputs(value) {
+    currentUploadFolder = value.trim();
+    const cp = document.getElementById('cpFolderInput');
+    const pp = document.getElementById('ppFolderInput');
+    if (cp && cp.value !== value) cp.value = value;
+    if (pp && pp.value !== value) pp.value = value;
+}
+
+function getProjectFolders(files) {
+    const set = new Set();
+    (files || []).forEach(f => { if (f.folder) set.add(f.folder); });
+    return [...set].sort();
+}
+
+function populateFolderDatalist(files) {
+    const folders = getProjectFolders(files);
+    const opts = folders.map(f => `<option value="${escapeHtml(f)}">`).join('');
+    ['cpFoldersList', 'ppFoldersList', 'newFileFoldersList'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = opts;
+    });
+}
+
 function openNewFileModal() {
     if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
     document.getElementById('newFileName').value = '';
     document.getElementById('newFileContent').value = '';
+    document.getElementById('newFileFolder').value = currentUploadFolder;
+    const proj = projects.find(p => p.id === currentProjectId);
+    if (proj) populateFolderDatalist(proj.files || []);
     openModal('newFileModal');
     setTimeout(() => document.getElementById('newFileName').focus(), 100);
 }
@@ -2490,13 +2571,14 @@ function openNewFileModal() {
 async function saveNewFile() {
     const filename = document.getElementById('newFileName').value.trim();
     const content = document.getElementById('newFileContent').value;
+    const folder = document.getElementById('newFileFolder').value.trim().replace(/^\/+|\/+$/g, '');
     if (!filename) { alert('Nom du fichier requis.'); return; }
     if (!currentProjectId) { alert('Aucun projet sélectionné.'); return; }
     const btn = document.querySelector('#newFileModal .modal-btn-primary');
     btn.disabled = true;
     btn.textContent = '⏳';
     try {
-        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content });
+        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content, folder });
         if (res.error) { alert(res.error); return; }
         closeModal('newFileModal');
         const proj = await api(`/api/projects/${currentProjectId}`);
@@ -2518,12 +2600,19 @@ function renderCpFiles(files) {
     const count = files.length;
     document.getElementById('cpFilesCount').textContent = count + ' fichier' + (count !== 1 ? 's' : '');
     document.getElementById('projectFilesCount').textContent = count;
+    populateFolderDatalist(files);
     const list = document.getElementById('cpFilesList');
     if (count === 0) {
         list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.82rem;">Aucun fichier</div>';
         return;
     }
-    list.innerHTML = files.map(f => {
+    // Grouper par dossier
+    const foldersMap = {};
+    files.forEach(f => {
+        const fld = f.folder || '';
+        (foldersMap[fld] = foldersMap[fld] || []).push(f);
+    });
+    const renderFile = f => {
         const ext = (f.filename.split('.').pop() || '').toLowerCase();
         const icon = ext === 'pdf' ? '📕' : ext === 'docx' ? '📝' : ext === 'md' ? '📓'
             : ['mp4','mov','avi','mkv','webm'].includes(ext) ? '🎬' : '📄';
@@ -2539,10 +2628,14 @@ function renderCpFiles(files) {
                 <div style="font-size:0.72rem;color:var(--text-muted);">${size}${statusBadge}</div>
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0;">
-                ${noContent && f.status !== 'processing' ? `<button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)" title="Extraire le contenu">↺</button>` : ''}
+                ${noContent && f.status !== 'processing' ? `<button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)" title="Extraire">↺</button>` : ''}
                 <button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
             </div>
         </div>`;
+    };
+    list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
+        const header = `<div class="folder-header">📁 ${fld ? escapeHtml(fld) : 'Racine'}</div>`;
+        return header + foldersMap[fld].map(renderFile).join('');
     }).join('');
 }
 
