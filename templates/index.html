@@ -810,6 +810,34 @@
         }
         .attached-file-remove:hover { color: var(--danger); }
 
+        .attached-image-preview {
+            display: none;
+            max-width: 780px;
+            margin: 0 auto 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            align-items: center;
+            gap: 10px;
+        }
+        .attached-image-preview.visible { display: flex; }
+        .attached-image-preview img {
+            height: 56px;
+            width: auto;
+            max-width: 90px;
+            border-radius: 5px;
+            object-fit: cover;
+        }
+        .msg-image {
+            max-width: 100%;
+            max-height: 480px;
+            border-radius: 8px;
+            display: block;
+            margin: 6px 0;
+            cursor: zoom-in;
+        }
+
         /* ═══ Modal ═══ */
         .modal-overlay {
             display: none;
@@ -1365,6 +1393,11 @@
         </div>
 
         <div class="input-bar">
+            <div class="attached-image-preview" id="attachedImagePreview">
+                <img id="attachedImageThumb" src="" alt="">
+                <div style="flex:1;font-size:0.8rem;color:var(--text-secondary);">Image jointe</div>
+                <button class="attached-file-remove" onclick="removeImageAttachment()">✕</button>
+            </div>
             <div class="attached-file" id="attachedFile">
                 <span>📎</span>
                 <span class="attached-file-name" id="attachedFileName"></span>
@@ -1729,6 +1762,7 @@ let contextConvId = null; // ID de la conv pour le menu contextuel
 let prompts = [];
 let settings = {};
 let attachedFile = null; // { filename, text }
+let attachedImage = null; // { base64, mediaType, dataUrl }
 let projects = [];
 let currentProjectId = null;
 let currentUser = null; // { username, role }
@@ -2129,7 +2163,7 @@ function renderMessages(messages) {
             <div class="message ${m.role}">
                 <div class="message-avatar">${avatar}</div>
                 <div class="message-body">
-                    <div class="message-content">${formatMessage(m.content)}</div>
+                    <div class="message-content">${renderContent(m.content)}</div>
                     ${costHtml ? `<div class="message-meta">${costHtml}</div>` : ''}
                 </div>
             </div>
@@ -2148,7 +2182,7 @@ function addMessage(role, content, cost = null) {
         <div class="message ${role}">
             <div class="message-avatar">${avatar}</div>
             <div class="message-body">
-                <div class="message-content">${formatMessage(content)}</div>
+                <div class="message-content">${renderContent(content)}</div>
                 ${costHtml}
             </div>
         </div>
@@ -2163,7 +2197,7 @@ function addMessage(role, content, cost = null) {
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const msg = input.value.trim();
-    if (!msg) return;
+    if (!msg && !attachedImage) return;
 
     // Créer une conversation si aucune active
     if (!currentConvId) {
@@ -2174,11 +2208,17 @@ async function sendMessage() {
         await loadConversations();
     }
 
-    // Afficher le message user
-    const displayMsg = attachedFile
-        ? `📎 ${attachedFile.filename}\n\n${msg}`
-        : msg;
-    addMessage('user', displayMsg);
+    // Construire le contenu d'affichage
+    let displayContent;
+    if (attachedImage) {
+        // Afficher sous forme de tableau multimodal pour addMessage
+        const blocks = [{ type: 'image', source: { type: 'base64', media_type: attachedImage.mediaType, data: attachedImage.base64 } }];
+        if (msg) blocks.push({ type: 'text', text: attachedFile ? `📎 ${attachedFile.filename}\n\n${msg}` : msg });
+        displayContent = blocks;
+    } else {
+        displayContent = attachedFile ? `📎 ${attachedFile.filename}\n\n${msg}` : msg;
+    }
+    addMessage('user', displayContent);
 
     input.value = '';
     input.style.height = 'auto';
@@ -2188,11 +2228,11 @@ async function sendMessage() {
         conversation_id: currentConvId,
         message: msg,
     };
-    if (attachedFile) {
-        body.file_content = attachedFile.text;
-    }
+    if (attachedFile) body.file_content = attachedFile.text;
+    if (attachedImage) body.image_data = [{ base64: attachedImage.base64, media_type: attachedImage.mediaType }];
 
     removeAttachment();
+    removeImageAttachment();
 
     try {
         const data = await api('/api/chat', 'POST', body);
@@ -2262,6 +2302,41 @@ function removeAttachment() {
     document.getElementById('attachedFile').classList.remove('visible');
     document.getElementById('uploadBtn').classList.remove('has-file');
 }
+
+function removeImageAttachment() {
+    attachedImage = null;
+    document.getElementById('attachedImagePreview').classList.remove('visible');
+    document.getElementById('attachedImageThumb').src = '';
+}
+
+function attachImageFromBlob(blob) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const dataUrl = ev.target.result;
+        const base64 = dataUrl.split(',')[1];
+        attachedImage = { base64, mediaType: blob.type || 'image/png', dataUrl };
+        document.getElementById('attachedImageThumb').src = dataUrl;
+        document.getElementById('attachedImagePreview').classList.add('visible');
+    };
+    reader.readAsDataURL(blob);
+}
+
+// Initialise paste handler on textarea
+document.addEventListener('DOMContentLoaded', () => {
+    const ta = document.getElementById('messageInput');
+    if (!ta) return;
+    ta.addEventListener('paste', e => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                attachImageFromBlob(item.getAsFile());
+                return;
+            }
+        }
+    });
+});
 
 // ═══════════════════════════════════════
 // Costs
@@ -3222,6 +3297,22 @@ function escapeHtml(str) {
     const d = document.createElement('div');
     d.textContent = str;
     return d.innerHTML;
+}
+
+function renderContent(content) {
+    if (!content) return '';
+    if (typeof content === 'string') return formatMessage(content);
+    // Array of blocks (multimodal)
+    return content.map(block => {
+        if (block.type === 'text') return formatMessage(block.text || '');
+        if (block.type === 'image' && block.source) {
+            const src = block.source.type === 'base64'
+                ? `data:${block.source.media_type};base64,${block.source.data}`
+                : block.source.url || '';
+            return `<img class="msg-image" src="${src}" alt="Image" onclick="this.style.maxHeight=this.style.maxHeight?'':'none'">`;
+        }
+        return '';
+    }).join('');
 }
 
 function formatMessage(text) {

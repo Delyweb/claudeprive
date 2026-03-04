@@ -769,19 +769,36 @@ def api_chat():
     conv_id = data.get("conversation_id")
     user_message = data.get("message", "").strip()
     file_content = data.get("file_content")
+    image_data = data.get("image_data", [])  # list of {base64, media_type}
 
-    if not conv_id or not user_message:
-        return jsonify({"error": "conversation_id et message requis"}), 400
+    if not conv_id or (not user_message and not image_data):
+        return jsonify({"error": "conversation_id et message (ou image) requis"}), 400
 
     conv = get_conversation(conv_id, u)
     if not conv:
         return jsonify({"error": "Conversation introuvable"}), 404
 
-    content = user_message
+    text_content = user_message
     if file_content:
-        content = f"{user_message}\n\n--- Contenu du fichier joint ---\n{file_content}"
+        text_content = f"{user_message}\n\n--- Contenu du fichier joint ---\n{file_content}"
 
-    conv["messages"].append({"role": "user", "content": content})
+    if image_data:
+        # Multimodal content: images + optional text
+        content_blocks = []
+        for img in image_data:
+            content_blocks.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": img.get("media_type", "image/png"),
+                    "data": img["base64"],
+                }
+            })
+        if text_content:
+            content_blocks.append({"type": "text", "text": text_content})
+        conv["messages"].append({"role": "user", "content": content_blocks})
+    else:
+        conv["messages"].append({"role": "user", "content": text_content})
 
     prompt_id = conv.get("prompt_id", "general")
     prompts = load_prompts(u)
