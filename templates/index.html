@@ -920,12 +920,29 @@
         }
         .cp-files-col.visible { display: flex; }
         .cp-files-col-header {
-            padding: 12px 16px;
+            padding: 10px 12px 8px;
             border-bottom: 1px solid var(--border);
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 6px;
             flex-shrink: 0;
+        }
+        .cp-files-col-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cp-files-col-subtitle {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+        .cp-files-col-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .cp-files-upload-zone {
             margin: 8px;
@@ -1002,7 +1019,12 @@
             padding: 10px 4px 4px;
             border-bottom: 1px solid var(--border);
             margin-bottom: 4px;
+            cursor: pointer;
+            user-select: none;
         }
+        .folder-header:hover { color: var(--text-primary); }
+        .folder-header .folder-chevron { font-style: normal; transition: transform 0.2s; display: inline-block; margin-left: auto; }
+        .folder-header.collapsed .folder-chevron { transform: rotate(-90deg); }
         .folder-header:first-child { padding-top: 2px; }
         .folder-input {
             width: 100%;
@@ -1361,14 +1383,15 @@
         </div>
         <div class="cp-files-col" id="cpFilesCol">
             <div class="cp-files-col-header">
-                <div style="flex:1;min-width:0;">
-                    <div style="font-size:0.82rem;font-weight:600;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="cpFilesProjectName"></div>
-                    <div style="font-size:0.72rem;color:var(--text-muted);" id="cpFilesCount">0 fichier</div>
+                <div class="cp-files-col-title" id="cpFilesProjectName">—</div>
+                <div class="cp-files-col-actions">
+                    <span class="cp-files-col-subtitle" id="cpFilesCount">0 fichier</span>
+                    <span style="flex:1;"></span>
+                    <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--accent);" onclick="createFolder()" title="Nouveau dossier">📁+</button>
+                    <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectModal()" title="Modifier le projet">✏️</button>
+                    <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
+                    <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
                 </div>
-                <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--accent);" onclick="createFolder()" title="Nouveau dossier">📁+</button>
-                <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectModal()" title="Modifier le projet">✏️</button>
-                <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
-                <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
             </div>
             <div style="padding:8px 8px 0;">
                 <input type="text" id="cpFolderInput" class="folder-input" list="cpFoldersList"
@@ -2325,8 +2348,12 @@ function renderProjectPageFiles(files) {
             </div>`;
     };
     list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
-        const header = `<div class="folder-header" style="margin-top:8px;">📁 ${fld ? escapeHtml(fld) : 'Racine'}</div>`;
-        return header + foldersMap[fld].map(renderFile).join('');
+        const key = 'pp:' + fld;
+        const collapsed = _collapsedFolders.has(key);
+        const label = fld ? escapeHtml(fld) : 'Racine';
+        const header = `<div class="folder-header${collapsed ? ' collapsed' : ''}" onclick="toggleFolder('${key}',this)" style="margin-top:8px;">📁 ${label}<span class="folder-chevron">▼</span></div>`;
+        const body = `<div class="folder-body" id="fbody-${key}" style="${collapsed ? 'display:none' : ''}">${foldersMap[fld].map(renderFile).join('')}</div>`;
+        return header + body;
     }).join('');
 
     // Lancer le polling si des vidéos sont en cours d'analyse
@@ -2571,6 +2598,23 @@ async function deleteProjectFile(savedAs) {
 }
 
 
+// ── Folders collapse state ──
+const _collapsedFolders = new Set();
+
+function toggleFolder(key, headerEl) {
+    const body = document.getElementById('fbody-' + key);
+    if (!body) return;
+    if (_collapsedFolders.has(key)) {
+        _collapsedFolders.delete(key);
+        body.style.display = '';
+        headerEl.classList.remove('collapsed');
+    } else {
+        _collapsedFolders.add(key);
+        body.style.display = 'none';
+        headerEl.classList.add('collapsed');
+    }
+}
+
 async function reextractFile(savedAs, btn) {
     if (!currentProjectId) return;
     btn.disabled = true;
@@ -2796,8 +2840,12 @@ function renderCpFiles(files) {
         </div>`;
     };
     list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
-        const header = `<div class="folder-header">📁 ${fld ? escapeHtml(fld) : 'Racine'}</div>`;
-        return header + foldersMap[fld].map(renderFile).join('');
+        const key = 'cp:' + fld;
+        const collapsed = _collapsedFolders.has(key);
+        const label = fld ? escapeHtml(fld) : 'Racine';
+        const header = `<div class="folder-header${collapsed ? ' collapsed' : ''}" onclick="toggleFolder('${key}',this)">📁 ${label}<span class="folder-chevron">▼</span></div>`;
+        const body = `<div class="folder-body" id="fbody-${key}" style="${collapsed ? 'display:none' : ''}">${foldersMap[fld].map(renderFile).join('')}</div>`;
+        return header + body;
     }).join('');
 }
 
