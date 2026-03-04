@@ -1287,6 +1287,57 @@ def api_project_delete_file(project_id, saved_as):
     return jsonify({"ok": True})
 
 
+@app.route("/api/projects/<project_id>/files/<saved_as>/content", methods=["GET"])
+@login_required
+def api_project_file_content(project_id, saved_as):
+    u = get_current_user()
+    uploads_dir = get_uploads_dir(u)
+    proj = get_project(project_id, u)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    file_info = next((f for f in proj.get("files", []) if f["saved_as"] == saved_as), None)
+    if not file_info:
+        return jsonify({"error": "Fichier introuvable"}), 404
+    # Try .txt first, then original file
+    txt_path = uploads_dir / (saved_as + ".txt")
+    if txt_path.exists():
+        content = txt_path.read_text(encoding="utf-8", errors="replace")
+    else:
+        orig = uploads_dir / saved_as
+        if orig.exists():
+            content = orig.read_text(encoding="utf-8", errors="replace")
+        else:
+            return jsonify({"error": "Contenu non disponible"}), 404
+    return jsonify({"ok": True, "content": content, "filename": file_info["filename"]})
+
+
+@app.route("/api/projects/<project_id>/files/<saved_as>/content", methods=["PUT"])
+@login_required
+def api_project_file_update_content(project_id, saved_as):
+    u = get_current_user()
+    uploads_dir = get_uploads_dir(u)
+    proj = get_project(project_id, u)
+    if not proj:
+        return jsonify({"error": "Projet introuvable"}), 404
+    file_info = next((f for f in proj.get("files", []) if f["saved_as"] == saved_as), None)
+    if not file_info:
+        return jsonify({"error": "Fichier introuvable"}), 404
+    data = request.get_json(silent=True) or {}
+    content = data.get("content", "")
+    # Write to both original and .txt
+    orig = uploads_dir / saved_as
+    orig.write_text(content, encoding="utf-8")
+    txt_path = uploads_dir / (saved_as + ".txt")
+    txt_path.write_text(content, encoding="utf-8")
+    # Update metadata
+    file_info["size"] = len(content.encode())
+    file_info["text_preview"] = content[:200] + "..." if len(content) > 200 else content
+    file_info["updated_at"] = datetime.now().isoformat()
+    proj["updated_at"] = datetime.now().isoformat()
+    save_project(project_id, proj, u)
+    return jsonify({"ok": True})
+
+
 # ── Journal Quotidien ──
 
 def get_today_conversations_text(project_id, username):

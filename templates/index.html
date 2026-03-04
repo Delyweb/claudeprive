@@ -1551,6 +1551,20 @@
 </div>
 
 <!-- ═══ New File Modal ═══ -->
+<div class="modal-overlay" id="editFileModal">
+    <div class="modal" style="width:700px;max-width:95vw;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <h3 style="margin:0;flex:1;" id="editFileModalTitle">Éditer le fichier</h3>
+            <span id="editFileSaveStatus" style="font-size:0.8rem;color:var(--text-muted);"></span>
+        </div>
+        <textarea id="editFileContent" style="width:100%;height:60vh;font-family:'SF Mono','Fira Code',monospace;font-size:0.82rem;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:12px;resize:vertical;tab-size:2;"></textarea>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="closeModal('editFileModal')">Fermer</button>
+            <button id="editFileSaveBtn" class="modal-btn modal-btn-primary" onclick="saveEditedFile()">💾 Enregistrer</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="saveArtifactModal">
     <div class="modal" style="width:420px;">
         <h3 style="margin-bottom:4px;">Enregistrer dans le projet</h3>
@@ -2293,6 +2307,8 @@ function renderProjectPageFiles(files) {
             </div>`;
         }
         const noContent = !f.text_preview;
+        const fileExt = '.' + (f.filename.split('.').pop() || '').toLowerCase();
+        const isEditable = TEXT_EDITABLE_EXTS.has(fileExt);
         return `<div class="pp-file-item" id="ppfile-${f.saved_as}">
                 <span class="pp-file-icon">${icon}</span>
                 <div class="pp-file-info">
@@ -2301,6 +2317,7 @@ function renderProjectPageFiles(files) {
                     ${preview ? `<div class="pp-file-preview">${preview}</div>` : ''}
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
+                    ${isEditable ? `<button class="pp-file-delete" style="color:var(--accent);border-color:var(--accent);" onclick="openEditFile('${f.saved_as}','${escapeHtml(f.filename)}')">✏️ Éditer</button>` : ''}
                     ${noContent ? `<button class="pp-file-delete" style="color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)">↺ Extraire</button>` : ''}
                     <button class="pp-file-delete" onclick="moveFileToFolder('${f.saved_as}','${escapeHtml(f.folder||'')}')" title="Déplacer vers un dossier">📁 Déplacer</button>
                     <button class="pp-file-delete" onclick="deleteProjectFile('${f.saved_as}')">Supprimer</button>
@@ -2620,6 +2637,36 @@ function moveFileToFolder(savedAs, currentFolder) {
     document.getElementById('moveFolderInput').focus();
 }
 
+// ── Éditeur de fichier ──
+const TEXT_EDITABLE_EXTS = new Set(['.md','.txt','.csv','.json','.xml','.html','.htm','.py','.js','.ts','.yml','.yaml','.css','.sh','.bash','.sql','.toml','.ini','.conf','.env']);
+let _editFileSavedAs = null;
+
+async function openEditFile(savedAs, filename) {
+    if (!currentProjectId) return;
+    _editFileSavedAs = savedAs;
+    document.getElementById('editFileModalTitle').textContent = filename;
+    document.getElementById('editFileSaveStatus').textContent = '';
+    document.getElementById('editFileContent').value = 'Chargement…';
+    openModal('editFileModal');
+    const res = await api(`/api/projects/${currentProjectId}/files/${savedAs}/content`);
+    if (res.error) { document.getElementById('editFileContent').value = ''; showToast(res.error, true); return; }
+    document.getElementById('editFileContent').value = res.content;
+    document.getElementById('editFileContent').focus();
+}
+
+async function saveEditedFile() {
+    if (!_editFileSavedAs || !currentProjectId) return;
+    const btn = document.getElementById('editFileSaveBtn');
+    const status = document.getElementById('editFileSaveStatus');
+    btn.disabled = true; btn.textContent = '⏳';
+    const content = document.getElementById('editFileContent').value;
+    const res = await api(`/api/projects/${currentProjectId}/files/${_editFileSavedAs}/content`, 'PUT', { content });
+    btn.disabled = false; btn.textContent = '💾 Enregistrer';
+    if (res.error) { showToast(res.error, true); return; }
+    status.textContent = '✓ Enregistré';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+}
+
 async function confirmMoveFolder() {
     const savedAs = _moveFolderSavedAs;
     if (!savedAs || !currentProjectId) return;
@@ -2732,6 +2779,8 @@ function renderCpFiles(files) {
         const statusBadge = f.status === 'processing'
             ? ' · <span style="color:var(--accent)">⏳</span>'
             : noContent ? ' · <span style="color:var(--danger)" title="Contenu non extrait">⚠️</span>' : '';
+        const fileExt2 = '.' + ext;
+        const isEditable2 = TEXT_EDITABLE_EXTS.has(fileExt2);
         return `<div class="cp-file-item">
             <span style="font-size:1.1rem;flex-shrink:0;">${icon}</span>
             <div style="flex:1;min-width:0;">
@@ -2739,6 +2788,7 @@ function renderCpFiles(files) {
                 <div style="font-size:0.72rem;color:var(--text-muted);">${size}${statusBadge}</div>
             </div>
             <div style="display:flex;gap:4px;flex-shrink:0;">
+                ${isEditable2 ? `<button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;color:var(--accent);border-color:var(--accent);" onclick="openEditFile('${f.saved_as}','${escapeHtml(f.filename)}')" title="Éditer">✏️</button>` : ''}
                 ${noContent && f.status !== 'processing' ? `<button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;color:var(--accent);border-color:var(--accent);" onclick="reextractFile('${f.saved_as}', this)" title="Extraire">↺</button>` : ''}
                 <button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;" onclick="moveFileToFolder('${f.saved_as}','${escapeHtml(f.folder||'')}')" title="Déplacer">📁</button>
                 <button class="pp-file-delete" style="font-size:0.7rem;padding:3px 6px;" onclick="deleteProjectFile('${f.saved_as}')" title="Supprimer">✕</button>
