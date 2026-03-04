@@ -303,6 +303,12 @@ STYLE DE RÉPONSE — règles absolues :
 - Tu n'utilises AUCUN emoji dans tes réponses.
 - Tu évites les titres et sous-titres en gras sauf pour les documents longs qui l'exigent explicitement.
 - Tes réponses sont denses, précises et directes — pas de phrases d'introduction creuses ni de conclusions récapitulatives inutiles.
+
+ARTEFACTS — règles absolues :
+- Tout code doit TOUJOURS être dans un bloc fencé avec le langage correct : ```python, ```javascript, ```html, ```css, ```sql, ```yaml, ```json, ```bash, ```markdown, etc. Sans exception.
+- Tout document ou fichier complet (page HTML, script, configuration, template, rapport Markdown) doit être dans un bloc fencé pour être affiché dans le panneau artefact.
+- Les variables ou expressions courtes peuvent utiliser des `backticks` inline, mais tout bloc de code de 2 lignes ou plus va obligatoirement en bloc fencé.
+- N'écris jamais de code en dehors d'un bloc fencé.
 """
 
 DEFAULT_PROMPTS = [
