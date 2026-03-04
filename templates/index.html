@@ -1032,12 +1032,6 @@
     <!-- Footer -->
     <div class="sidebar-footer">
         <button class="settings-btn" onclick="openSettingsModal()">Réglages</button>
-        <button class="admin-btn" id="adminBtn" onclick="openAdminPanel()">Gestion utilisateurs</button>
-        <div class="user-bar">
-            <span>👤</span>
-            <span class="user-bar-name" id="userBarName">...</span>
-            <button class="user-bar-logout" onclick="logout()" title="Se déconnecter">Déconnexion</button>
-        </div>
     </div>
 </aside>
 
@@ -1048,7 +1042,15 @@
             <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
             <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
         </div>
-        <span class="chat-header-model" id="chatModel">Sonnet</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span class="chat-header-model" id="chatModel">Sonnet</span>
+            <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:4px 12px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem; transition:all 0.2s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='none'">Admin</button>
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-muted);">
+                <span>👤</span>
+                <span id="userBarName" style="color:var(--text-secondary);"></span>
+                <button onclick="logout()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.78rem; padding:2px 6px; border-radius:4px; transition:color 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">Déconnexion</button>
+            </div>
+        </div>
     </div>
 
     <div class="messages" id="messagesContainer">

@@ -491,7 +491,7 @@ def api_admin_list_users():
         {"username": u, "role": d.get("role", "user"), "created_at": d.get("created_at")}
         for u, d in users.items()
     ]
-    return jsonify(result)
+    return jsonify({"users": result})
 
 
 @app.route("/api/admin/users", methods=["POST"])
