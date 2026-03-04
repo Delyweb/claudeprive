@@ -1045,7 +1045,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--text-muted);
+            color: var(--accent);
             padding: 10px 4px 4px;
             border-bottom: 1px solid var(--border);
             margin-bottom: 4px;
@@ -2369,7 +2369,8 @@ function renderProjectPageFiles(files) {
         }
         const noContent = !f.text_preview;
         const fileExt = '.' + (f.filename.split('.').pop() || '').toLowerCase();
-        const isEditable = TEXT_EDITABLE_EXTS.has(fileExt);
+        const NON_EDITABLE_EXTS = new Set(['.pdf','.docx','.xlsx','.pptx','.doc','.xls','.mp4','.mov','.avi','.mkv','.webm','.mp3','.wav','.png','.jpg','.jpeg','.gif','.zip','.tar','.gz']);
+        const isEditable = !NON_EDITABLE_EXTS.has(fileExt) && !noContent;
         return `<div class="pp-file-item" id="ppfile-${f.saved_as}">
                 <span class="pp-file-icon">${icon}</span>
                 <div class="pp-file-info">
@@ -2387,7 +2388,7 @@ function renderProjectPageFiles(files) {
     };
     list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
         const key = 'pp:' + fld;
-        const collapsed = _collapsedFolders.has(key);
+        const collapsed = !_expandedFolders.has(key);
         const label = fld ? escapeHtml(fld) : 'Racine';
         const header = `<div class="folder-header${collapsed ? ' collapsed' : ''}" onclick="toggleFolder('${key}',this)" style="margin-top:8px;">📁 ${label}<span class="folder-chevron">▼</span></div>`;
         const body = `<div class="folder-body" id="fbody-${key}" style="${collapsed ? 'display:none' : ''}">${foldersMap[fld].map(renderFile).join('')}</div>`;
@@ -2698,19 +2699,19 @@ function clearConvSearch() {
 }
 
 // ── Folders collapse state ──
-const _collapsedFolders = new Set();
+const _expandedFolders = new Set(); // collapsed by default
 
 function toggleFolder(key, headerEl) {
     const body = document.getElementById('fbody-' + key);
     if (!body) return;
-    if (_collapsedFolders.has(key)) {
-        _collapsedFolders.delete(key);
-        body.style.display = '';
-        headerEl.classList.remove('collapsed');
-    } else {
-        _collapsedFolders.add(key);
+    if (_expandedFolders.has(key)) {
+        _expandedFolders.delete(key);
         body.style.display = 'none';
         headerEl.classList.add('collapsed');
+    } else {
+        _expandedFolders.add(key);
+        body.style.display = '';
+        headerEl.classList.remove('collapsed');
     }
 }
 
@@ -2923,7 +2924,8 @@ function renderCpFiles(files) {
             ? ' · <span style="color:var(--accent)">⏳</span>'
             : noContent ? ' · <span style="color:var(--danger)" title="Contenu non extrait">⚠️</span>' : '';
         const fileExt2 = '.' + ext;
-        const isEditable2 = TEXT_EDITABLE_EXTS.has(fileExt2);
+        const NON_EDITABLE_EXTS2 = new Set(['.pdf','.docx','.xlsx','.pptx','.doc','.xls','.mp4','.mov','.avi','.mkv','.webm','.mp3','.wav','.png','.jpg','.jpeg','.gif','.zip','.tar','.gz']);
+        const isEditable2 = !NON_EDITABLE_EXTS2.has(fileExt2) && !noContent;
         return `<div class="cp-file-item">
             <span style="font-size:1.1rem;flex-shrink:0;">${icon}</span>
             <div style="flex:1;min-width:0;">
@@ -2940,7 +2942,7 @@ function renderCpFiles(files) {
     };
     list.innerHTML = Object.keys(foldersMap).sort().map(fld => {
         const key = 'cp:' + fld;
-        const collapsed = _collapsedFolders.has(key);
+        const collapsed = !_expandedFolders.has(key);
         const label = fld ? escapeHtml(fld) : 'Racine';
         const header = `<div class="folder-header${collapsed ? ' collapsed' : ''}" onclick="toggleFolder('${key}',this)">📁 ${label}<span class="folder-chevron">▼</span></div>`;
         const body = `<div class="folder-body" id="fbody-${key}" style="${collapsed ? 'display:none' : ''}">${foldersMap[fld].map(renderFile).join('')}</div>`;
