@@ -445,9 +445,97 @@
         .chat-area {
             flex: 1;
             display: flex;
+            flex-direction: row;
+            height: 100vh;
+            overflow: hidden;
+            min-width: 0;
+        }
+        .chat-main {
+            flex: 1;
+            display: flex;
             flex-direction: column;
             height: 100vh;
+            min-width: 0;
         }
+        /* ═══ Artifact Panel (right) ═══ */
+        .artifact-panel {
+            display: none;
+            width: 45%;
+            min-width: 360px;
+            max-width: 60%;
+            border-left: 1px solid var(--border);
+            background: var(--bg-secondary);
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .artifact-panel.visible { display: flex; }
+        .artifact-panel-header {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .ap-tab {
+            padding: 4px 12px;
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            transition: all 0.2s;
+        }
+        .ap-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .ap-tab:hover:not(.active) { background: var(--bg-hover); color: var(--text-primary); }
+        .ap-action-btn {
+            padding: 4px 10px;
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .ap-action-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .ap-close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: color 0.2s;
+            margin-left: auto;
+        }
+        .ap-close-btn:hover { color: var(--danger); }
+        .artifact-panel-code {
+            flex: 1;
+            overflow-y: auto;
+            background: var(--bg-primary);
+        }
+        .artifact-panel-code pre {
+            margin: 0;
+            padding: 16px;
+            font-size: 0.85rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .artifact-panel-iframe {
+            flex: 1;
+            border: none;
+            background: #fff;
+            display: none;
+        }
+        .artifact-panel-iframe.visible { display: block; }
 
         .chat-header {
             padding: 16px 24px;
@@ -907,6 +995,18 @@
         }
         .artifact-save-btn:hover { background: var(--accent); color: var(--bg-primary); }
         .artifact-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .artifact-preview-btn {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .artifact-preview-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .artifact-preview-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
         .artifact-body pre {
             margin: 0;
             padding: 14px;
@@ -916,6 +1016,14 @@
             border-radius: 0;
             border: none;
         }
+        .artifact-iframe {
+            display: none;
+            width: 100%;
+            min-height: 400px;
+            border: none;
+            background: #fff;
+        }
+        .artifact-iframe.visible { display: block; }
 
         /* ═══ Mobile ═══ */
         .sidebar-toggle {
@@ -1037,49 +1145,71 @@
 
 <!-- ═══ Chat Area ═══ -->
 <main class="chat-area">
-    <div class="chat-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
-            <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
+    <!-- Chat principal -->
+    <div class="chat-main">
+        <div class="chat-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+                <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span class="chat-header-model" id="chatModel">Sonnet</span>
+                <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:4px 12px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem; transition:all 0.2s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='none'">Admin</button>
+                <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-muted);">
+                    <span>👤</span>
+                    <span id="userBarName" style="color:var(--text-secondary);"></span>
+                    <button onclick="logout()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.78rem; padding:2px 6px; border-radius:4px; transition:color 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">Déconnexion</button>
+                </div>
+            </div>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-            <span class="chat-header-model" id="chatModel">Sonnet</span>
-            <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:4px 12px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem; transition:all 0.2s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='none'">Admin</button>
-            <div style="display:flex; align-items:center; gap:6px; font-size:0.8rem; color:var(--text-muted);">
-                <span>👤</span>
-                <span id="userBarName" style="color:var(--text-secondary);"></span>
-                <button onclick="logout()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.78rem; padding:2px 6px; border-radius:4px; transition:color 0.2s;" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">Déconnexion</button>
+
+        <div class="messages" id="messagesContainer">
+            <div class="welcome" id="welcomeScreen">
+                <div class="welcome-icon">CP</div>
+                <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
+                <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div style="width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--bg-primary);">C</div>
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <div class="input-bar">
+            <div class="attached-file" id="attachedFile">
+                <span>📎</span>
+                <span class="attached-file-name" id="attachedFileName"></span>
+                <button class="attached-file-remove" onclick="removeAttachment()">✕</button>
+            </div>
+            <div class="input-wrapper">
+                <button class="file-upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="Joindre un fichier">📎</button>
+                <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
+                <textarea id="messageInput" placeholder="Écrivez votre message..." rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Envoyer">➤</button>
             </div>
         </div>
     </div>
 
-    <div class="messages" id="messagesContainer">
-        <div class="welcome" id="welcomeScreen">
-            <div class="welcome-icon">CP</div>
-            <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
-            <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
+    <!-- Panneau artefact (droite) -->
+    <div id="artifactPanel" class="artifact-panel">
+        <div class="artifact-panel-header">
+            <button id="apTabCode" class="ap-tab active" onclick="setArtifactTab('code')">Code</button>
+            <button id="apTabPreview" class="ap-tab" onclick="setArtifactTab('preview')" style="display:none">Aperçu</button>
+            <span id="apLang" style="font-size:0.78rem;color:var(--accent);font-weight:600;margin-left:4px;"></span>
+            <div style="display:flex;gap:6px;margin-left:auto;">
+                <button class="ap-action-btn" onclick="printArtifact()" title="Imprimer">🖨️</button>
+                <button class="ap-action-btn" onclick="downloadArtifact()" title="Télécharger">⬇️</button>
+                <button id="apSaveBtn" class="ap-action-btn" onclick="saveArtifactFromPanel()">💾 Projet</button>
+                <button class="ap-close-btn" onclick="closeArtifactPanel()">✕</button>
+            </div>
         </div>
-    </div>
-
-    <div class="typing-indicator" id="typingIndicator">
-        <div style="width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--bg-primary);">C</div>
-        <div class="typing-dots">
-            <span></span><span></span><span></span>
+        <div id="apCodeView" class="artifact-panel-code">
+            <pre><code id="apCodeContent"></code></pre>
         </div>
-    </div>
-
-    <div class="input-bar">
-        <div class="attached-file" id="attachedFile">
-            <span>📎</span>
-            <span class="attached-file-name" id="attachedFileName"></span>
-            <button class="attached-file-remove" onclick="removeAttachment()">✕</button>
-        </div>
-        <div class="input-wrapper">
-            <button class="file-upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()" title="Joindre un fichier">📎</button>
-            <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)">
-            <textarea id="messageInput" placeholder="Écrivez votre message..." rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
-            <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Envoyer">➤</button>
-        </div>
+        <iframe id="apIframe" class="artifact-panel-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
     </div>
 </main>
 
@@ -2175,21 +2305,20 @@ function escapeHtml(str) {
 function formatMessage(text) {
     if (!text) return '';
 
-    // Artefacts : blocs de code avec langage → artifact-block avec bouton Enregistrer
+    // Artefacts : blocs de code avec langage → artifact-block avec bouton Ouvrir dans le panneau
     let html = text.replace(/```([\w.+-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
         const safeLang = escapeHtml(lang || 'texte');
-        const safeCode = escapeHtml(code.trimEnd());
-        // Déterminer une extension proposée
+        const rawCode = code.trimEnd();
+        const safeCode = escapeHtml(rawCode);
         const extMap = { python:'py', javascript:'js', js:'js', html:'html', css:'css',
             bash:'sh', sh:'sh', sql:'sql', json:'json', yaml:'yml', yml:'yml', markdown:'md', md:'md' };
-        const ext = extMap[lang.toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
-        const saveBtn = currentProjectId
-            ? `<button class="artifact-save-btn" onclick="saveArtifact(this, '${ext}')">Enregistrer dans le projet</button>`
-            : '';
+        const ext = extMap[(lang||'').toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
+        // Stocker le code brut dans un attribut data encodé en base64
+        const b64 = btoa(unescape(encodeURIComponent(rawCode)));
         return `<div class="artifact-block">
             <div class="artifact-header">
                 <span class="artifact-lang">${safeLang}</span>
-                ${saveBtn}
+                <button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button>
             </div>
             <div class="artifact-body"><pre><code>${safeCode}</code></pre></div>
         </div>`;
@@ -2213,25 +2342,117 @@ function formatMessage(text) {
     return html;
 }
 
+// ═══════════════════════════════════════
+// Artifact Panel
+// ═══════════════════════════════════════
+let _apCode = '';
+let _apExt = '';
+let _apLang = '';
+
+function openArtifactPanel(btn) {
+    _apLang = btn.dataset.lang || 'texte';
+    _apExt = btn.dataset.ext || 'txt';
+    _apCode = decodeURIComponent(escape(atob(btn.dataset.code)));
+
+    document.getElementById('apCodeContent').textContent = _apCode;
+    document.getElementById('apLang').textContent = _apLang;
+
+    const isHtml = _apExt === 'html';
+    document.getElementById('apTabPreview').style.display = isHtml ? '' : 'none';
+    setArtifactTab(isHtml ? 'preview' : 'code');
+
+    document.getElementById('artifactPanel').classList.add('visible');
+}
+
+function closeArtifactPanel() {
+    document.getElementById('artifactPanel').classList.remove('visible');
+    document.getElementById('apIframe').srcdoc = '';
+}
+
+function setArtifactTab(tab) {
+    const codeView = document.getElementById('apCodeView');
+    const iframe = document.getElementById('apIframe');
+    const tabCode = document.getElementById('apTabCode');
+    const tabPreview = document.getElementById('apTabPreview');
+    if (tab === 'preview') {
+        codeView.style.display = 'none';
+        iframe.classList.add('visible');
+        iframe.srcdoc = _apCode;
+        tabCode.classList.remove('active');
+        tabPreview.classList.add('active');
+    } else {
+        iframe.classList.remove('visible');
+        iframe.srcdoc = '';
+        codeView.style.display = '';
+        tabCode.classList.add('active');
+        tabPreview.classList.remove('active');
+    }
+}
+
+function printArtifact() {
+    if (_apExt === 'html') {
+        const iframe = document.getElementById('apIframe');
+        if (iframe.classList.contains('visible') && iframe.contentWindow) {
+            iframe.contentWindow.print();
+        } else {
+            // Ouvrir dans un nouvel onglet et imprimer
+            const w = window.open('', '_blank');
+            w.document.write(_apCode);
+            w.document.close();
+            w.print();
+        }
+    } else {
+        const w = window.open('', '_blank');
+        w.document.write(`<pre style="font-family:monospace;padding:20px;">${escapeHtml(_apCode)}</pre>`);
+        w.document.close();
+        w.print();
+    }
+}
+
+function downloadArtifact() {
+    const blob = new Blob([_apCode], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `artefact_${Date.now()}.${_apExt}`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function saveArtifactFromPanel() {
+    if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
+    const filename = prompt('Nom du fichier :', `artefact_${Date.now()}.${_apExt}`);
+    if (!filename) return;
+    const btn = document.getElementById('apSaveBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+        const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content: _apCode });
+        if (res.error) { alert(res.error); btn.disabled = false; btn.textContent = '💾 Projet'; return; }
+        btn.textContent = '✓ Enregistré';
+        document.getElementById('projectFilesCount').textContent = res.file_count;
+        setTimeout(() => { btn.disabled = false; btn.textContent = '💾 Projet'; }, 2000);
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.textContent = '💾 Projet';
+    }
+}
+
 async function saveArtifact(btn, ext) {
     if (!currentProjectId) { alert('Sélectionnez un projet d\'abord.'); return; }
     const block = btn.closest('.artifact-block');
     const code = block.querySelector('code').textContent;
-
-    // Proposer un nom de fichier
     const filename = prompt('Nom du fichier à enregistrer :', `artefact_${Date.now()}.${ext}`);
     if (!filename) return;
-
     btn.disabled = true;
     btn.textContent = '⏳';
-
     try {
         const res = await api(`/api/projects/${currentProjectId}/artifact`, 'POST', { filename, content: code });
         if (res.error) { alert(res.error); return; }
         btn.textContent = '✓ Enregistré';
         btn.style.background = 'var(--accent)';
         btn.style.color = 'var(--bg-primary)';
-        // Refresh badge
         document.getElementById('projectFilesCount').textContent = res.file_count;
     } catch (err) {
         alert('Erreur : ' + err.message);
