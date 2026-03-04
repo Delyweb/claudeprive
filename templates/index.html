@@ -354,6 +354,9 @@
         .sidebar-footer {
             padding: 12px 16px;
             border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
         .settings-btn {
             width: 100%;
@@ -367,6 +370,76 @@
             transition: all 0.2s;
         }
         .settings-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .user-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+        }
+        .user-bar-name {
+            flex: 1;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-bar-logout {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            transition: color 0.2s;
+        }
+        .user-bar-logout:hover { color: var(--danger); }
+        .admin-btn {
+            width: 100%;
+            padding: 7px;
+            background: none;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            display: none;
+        }
+        .admin-btn:hover { background: var(--accent-dim); }
+        /* Admin modal */
+        .admin-user-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+        .admin-user-name { flex: 1; font-weight: 500; }
+        .admin-user-role {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            background: var(--bg-hover);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .admin-user-del {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: color 0.2s;
+        }
+        .admin-user-del:hover { color: var(--danger); }
 
         /* ═══ Chat Area ═══ */
         .chat-area {
@@ -959,6 +1032,12 @@
     <!-- Footer -->
     <div class="sidebar-footer">
         <button class="settings-btn" onclick="openSettingsModal()">Réglages</button>
+        <button class="admin-btn" id="adminBtn" onclick="openAdminPanel()">Gestion utilisateurs</button>
+        <div class="user-bar">
+            <span>👤</span>
+            <span class="user-bar-name" id="userBarName">...</span>
+            <button class="user-bar-logout" onclick="logout()" title="Se déconnecter">Déconnexion</button>
+        </div>
     </div>
 </aside>
 
@@ -1105,6 +1184,25 @@
     </div>
 </div>
 
+<!-- ═══ Admin Modal ═══ -->
+<div class="modal-overlay" id="adminModal">
+    <div class="modal" style="width:520px;">
+        <h3>Gestion des utilisateurs</h3>
+        <div id="adminUsersList" style="margin-bottom:16px;"></div>
+        <div style="border-top:1px solid var(--border);padding-top:16px;">
+            <div style="font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Créer un utilisateur</div>
+            <label>Identifiant</label>
+            <input type="text" id="newUsername" placeholder="Ex: alice">
+            <label>Mot de passe</label>
+            <input type="password" id="newPassword" placeholder="Mot de passe initial">
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('adminModal')">Fermer</button>
+                <button class="modal-btn modal-btn-primary" onclick="createUser()">Créer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═══ Context Menu ═══ -->
 <div id="contextMenu" class="context-menu">
     <div class="context-menu-item" onclick="renameConvContext()">Renommer</div>
@@ -1139,19 +1237,21 @@ let settings = {};
 let attachedFile = null; // { filename, text }
 let projects = [];
 let currentProjectId = null;
+let currentUser = null; // { username, role }
 
 // ═══════════════════════════════════════
 // Init
 // ═══════════════════════════════════════
 async function init() {
     await Promise.all([
+        loadMe(),
         loadProjects(),
         loadConversations(),
         loadPrompts(),
         loadSettings(),
         loadCosts(),
     ]);
-    
+
     // Close context menu on click elsewhere
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.conv-actions-btn') && !e.target.closest('.context-menu')) {
@@ -1160,6 +1260,69 @@ async function init() {
     });
 }
 init();
+
+// ═══════════════════════════════════════
+// Auth / User
+// ═══════════════════════════════════════
+async function loadMe() {
+    try {
+        const data = await api('/api/me');
+        if (data.error) { window.location.href = '/login'; return; }
+        currentUser = data;
+        document.getElementById('userBarName').textContent = data.username;
+        if (data.role === 'admin') {
+            document.getElementById('adminBtn').style.display = 'block';
+        }
+    } catch(e) {
+        window.location.href = '/login';
+    }
+}
+
+async function logout() {
+    await fetch('/logout', { method: 'POST' });
+    window.location.href = '/login';
+}
+
+// ═══════════════════════════════════════
+// Admin panel
+// ═══════════════════════════════════════
+async function openAdminPanel() {
+    await refreshAdminUsers();
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('adminModal').classList.add('visible');
+}
+
+async function refreshAdminUsers() {
+    const data = await api('/api/admin/users');
+    const list = document.getElementById('adminUsersList');
+    if (data.error) { list.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`; return; }
+    list.innerHTML = data.users.map(u => `
+        <div class="admin-user-row">
+            <span class="admin-user-name">${u.username}</span>
+            <span class="admin-user-role">${u.role}</span>
+            ${u.username !== currentUser.username ? `<button class="admin-user-del" onclick="deleteUser('${u.username}')" title="Supprimer">✕</button>` : ''}
+        </div>
+    `).join('');
+}
+
+async function createUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value;
+    if (!username || !password) { alert('Identifiant et mot de passe requis'); return; }
+    const data = await api('/api/admin/users', 'POST', { username, password });
+    if (data.error) { alert(data.error); return; }
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newPassword').value = '';
+    await refreshAdminUsers();
+}
+
+async function deleteUser(username) {
+    if (!confirm(`Supprimer l'utilisateur "${username}" et toutes ses données ?`)) return;
+    const data = await api(`/api/admin/users/${username}`, 'DELETE');
+    if (data.error) { alert(data.error); return; }
+    await refreshAdminUsers();
+}
 
 // ═══════════════════════════════════════
 // API helpers
