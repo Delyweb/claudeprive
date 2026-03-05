@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClaudePrivé</title>
+    <title>{{ app_title }}</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232ec4a0'/><text x='50' y='68' font-size='52' font-weight='bold' text-anchor='middle' fill='%230f1117' font-family='sans-serif'>CP</text></svg>">
     <style>
         /* ═══ Variables ═══ */
@@ -1286,8 +1286,8 @@
 <!-- ═══ Sidebar ═══ -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <div class="logo">CP</div>
-        <h1>ClaudePrivé <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">v2.3</span></h1>
+        <div class="logo">{{ app_initials }}</div>
+        <h1>{{ app_title }} <span style="font-size:0.7em;opacity:0.6;font-weight:normal;">{{ app_subtitle }}</span></h1>
     </div>
 
     <button class="new-chat-btn" onclick="newConversation()">+ Nouvelle conversation</button>
@@ -1322,7 +1322,7 @@
 
     <!-- Prompt actif -->
     <div class="sidebar-section">
-        <div class="sidebar-section-title">Prompt système</div>
+        <div class="sidebar-section-title">{% if app_mode == 'student' %}Projet en cours{% else %}Prompt système{% endif %}</div>
         <select class="prompt-select" id="promptSelect" onchange="changeActivePrompt()"></select>
         <div class="prompt-actions">
             <button class="prompt-btn-sm" onclick="openPromptModal()">Modifier</button>
@@ -1347,11 +1347,49 @@
         <div id="projectsList"></div>
     </div>
 
+    <!-- Messagerie -->
+    <div class="sidebar-section" id="messagesSidebarSection">
+        <div class="sidebar-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+            Messages
+            <span id="msgUnreadBadge" style="display:none;background:var(--danger);color:#fff;font-size:0.7rem;font-weight:700;padding:1px 6px;border-radius:10px;">0</span>
+        </div>
+        <button class="prompt-btn-sm" style="width:100%;text-align:left;" onclick="openMessagesPanel()">✉ Ouvrir la messagerie</button>
+    </div>
+
     <!-- Footer -->
     <div class="sidebar-footer">
         <button class="settings-btn" onclick="openSettingsModal()">Réglages</button>
     </div>
 </aside>
+
+<!-- ═══ Panel Messagerie ═══ -->
+<div id="messagesPanel" style="display:none;position:fixed;inset:0;background:var(--bg-primary);z-index:900;overflow:hidden;display:none;">
+    <div style="display:flex;height:100%;flex-direction:column;">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">
+            <button onclick="closeMessagesPanel()" class="modal-btn modal-btn-cancel" style="padding:6px 14px;">← Retour</button>
+            <h2 style="font-size:1.1rem;font-weight:700;margin:0;">Messagerie</h2>
+        </div>
+        <!-- Corps -->
+        <div style="display:flex;flex:1;overflow:hidden;">
+            <!-- Liste des threads -->
+            <div id="msgThreadsList" style="width:280px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;"></div>
+            <!-- Conversation ouverte -->
+            <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+                <div id="msgConversation" style="flex:1;overflow-y:auto;padding:20px;"></div>
+                <div id="msgInputArea" style="padding:14px 20px;border-top:1px solid var(--border);display:none;gap:10px;display:none;">
+                    <div id="msgToLabel" style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;"></div>
+                    <div style="display:flex;gap:10px;">
+                        <input type="text" id="msgInput" placeholder="Écrire un message…"
+                               style="flex:1;background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-primary);border-radius:8px;padding:9px 14px;font-size:0.9rem;"
+                               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDirectMessage();}">
+                        <button onclick="sendDirectMessage()" class="modal-btn modal-btn-primary" style="padding:8px 18px;">Envoyer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- ═══ Chat Area ═══ -->
 <main class="chat-area">
@@ -1361,7 +1399,7 @@
             <div class="chat-header-row1">
                 <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
                 <button id="chatBackBtn" class="prompt-btn-sm" onclick="openConversationsPage()" title="Retour aux conversations du projet" style="display:none;font-size:0.78rem;padding:3px 10px;color:var(--accent);">← Projet</button>
-                <span class="chat-header-title" id="chatTitle">ClaudePrivé</span>
+                <span class="chat-header-title" id="chatTitle">{{ app_title }}</span>
                 <button id="chatFilesBtn" class="prompt-btn-sm" onclick="toggleChatFilesPanel()" title="Voir les fichiers du projet" style="display:none;font-size:0.78rem;padding:3px 10px;">📁 Fichiers</button>
                 <span class="chat-header-model" id="chatModel">Sonnet</span>
                 <button id="adminBtn" onclick="openAdminPanel()" style="display:none; padding:3px 10px; background:none; border:1px solid var(--accent); color:var(--accent); border-radius:20px; cursor:pointer; font-size:0.78rem;">Admin</button>
@@ -1379,9 +1417,9 @@
 
         <div class="messages" id="messagesContainer">
             <div class="welcome" id="welcomeScreen">
-                <div class="welcome-icon">CP</div>
-                <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
-                <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
+                <div class="welcome-icon">{{ app_initials }}</div>
+                <h2>{{ app_title }}</h2>
+                <p>{{ app_subtitle }}</p>
             </div>
         </div>
 
@@ -1634,6 +1672,22 @@
             </div>
         </div>
 
+        <!-- Bandeau coûts agrégés -->
+        <div id="adminCostBanner" style="display:flex;gap:20px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:18px 24px;margin-bottom:24px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:140px;">
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Coût total plateforme</div>
+                <div id="adminTotalCost" style="font-size:1.6rem;font-weight:700;color:var(--accent);">$0.00</div>
+            </div>
+            <div style="flex:1;min-width:120px;">
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Utilisateurs actifs</div>
+                <div id="adminActiveUsers" style="font-size:1.6rem;font-weight:700;color:var(--text-primary);">0</div>
+            </div>
+            <div style="flex:1;min-width:120px;">
+                <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Total utilisateurs</div>
+                <div id="adminTotalUsers" style="font-size:1.6rem;font-weight:700;color:var(--text-primary);">0</div>
+            </div>
+        </div>
+
         <!-- Create user -->
         <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:28px;">
             <div style="font-size:0.9rem;font-weight:600;margin-bottom:14px;color:var(--accent);">+ Nouvel utilisateur</div>
@@ -1838,6 +1892,10 @@ async function refreshAdminUsers() {
     const list = document.getElementById('adminUsersList');
     if (data.error) { list.innerHTML = `<div style="color:var(--danger);padding:16px;">${data.error}</div>`; return; }
     _adminModels = data.models || [];
+    // Bandeau coûts agrégés
+    document.getElementById('adminTotalCost').textContent = '$' + (data.global_total || 0).toFixed(4);
+    document.getElementById('adminActiveUsers').textContent = data.active_users || 0;
+    document.getElementById('adminTotalUsers').textContent = (data.users || []).length;
 
     const MODEL_LABELS = {
         'eu.anthropic.claude-opus-4-6-v1': 'Opus 4.6 EU',
@@ -2045,11 +2103,11 @@ async function deleteConversation(id) {
         currentConvId = null;
         document.getElementById('messagesContainer').innerHTML = `
             <div class="welcome" id="welcomeScreen">
-                <div class="welcome-icon">CP</div>
-                <h2>Bienvenue sur ClaudePrivé 2.0 (2026)</h2>
-                <p>Accès exclusif aux modèles Claude Opus 4.6, Sonnet 4.5 et Haiku 4.5 en Europe.</p>
+                <div class="welcome-icon">{{ app_initials }}</div>
+                <h2>{{ app_title }}</h2>
+                <p>{{ app_subtitle }}</p>
             </div>`;
-        document.getElementById('chatTitle').textContent = 'ClaudePrivé';
+        document.getElementById('chatTitle').textContent = '{{ app_title }}';
     }
     await loadConversations();
 }
@@ -3550,6 +3608,87 @@ async function confirmSaveArtifact(replace) {
     }
 }
 
+
+
+// ═══════════════════════════════════════
+// Messagerie entre utilisateurs
+// ═══════════════════════════════════════
+let _currentMsgThread = null;
+
+function openMessagesPanel() {
+    document.getElementById('messagesPanel').style.display = '';
+    loadMessageThreads();
+}
+
+function closeMessagesPanel() {
+    document.getElementById('messagesPanel').style.display = 'none';
+}
+
+async function loadMessageThreads() {
+    const threads = await api('/api/messages');
+    const el = document.getElementById('msgThreadsList');
+    if (!threads || threads.error || threads.length === 0) {
+        el.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:0.85rem;">Aucun message pour l\'instant.</div>';
+        return;
+    }
+    el.innerHTML = threads.map(t => `
+        <div onclick="openMsgThread('${escapeHtml(t.with)}')"
+             style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;${_currentMsgThread===t.with?'background:var(--bg-tertiary);':''}"
+             onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background=_currentMsgThread===this.dataset.user?'var(--bg-tertiary)':'';" data-user="${escapeHtml(t.with)}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(t.with)}</div>
+                ${t.unread > 0 ? `<span style="background:var(--danger);color:#fff;font-size:0.7rem;font-weight:700;padding:1px 7px;border-radius:10px;">${t.unread}</span>` : ''}
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.last_text)}</div>
+        </div>`).join('');
+}
+
+async function openMsgThread(username) {
+    _currentMsgThread = username;
+    document.getElementById('msgToLabel').textContent = `Conversation avec ${username}`;
+    document.getElementById('msgInputArea').style.display = '';
+    document.getElementById('msgInput').focus();
+
+    await api(`/api/messages/${encodeURIComponent(username)}/read`, 'POST');
+    const msgs = await api(`/api/messages/${encodeURIComponent(username)}`);
+    const el = document.getElementById('msgConversation');
+    if (!msgs || msgs.error || msgs.length === 0) {
+        el.innerHTML = `<div style="padding:20px;color:var(--text-muted);font-size:0.85rem;">Commencez la conversation avec ${escapeHtml(username)}.</div>`;
+    } else {
+        const me = document.getElementById('userBarName')?.textContent || '';
+        el.innerHTML = msgs.map(m => `
+            <div style="display:flex;flex-direction:column;align-items:${m.from===me?'flex-end':'flex-start'};margin-bottom:12px;">
+                <div style="max-width:70%;background:${m.from===me?'var(--accent)':'var(--bg-secondary)'};color:${m.from===me?'var(--bg-primary)':'var(--text-primary)'};padding:9px 14px;border-radius:12px;font-size:0.9rem;">${escapeHtml(m.text)}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px;">${new Date(m.at).toLocaleString('fr-FR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'})}</div>
+            </div>`).join('');
+        el.scrollTop = el.scrollHeight;
+    }
+    await updateMsgUnreadBadge();
+    loadMessageThreads();
+}
+
+async function sendDirectMessage() {
+    if (!_currentMsgThread) return;
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    await api(`/api/messages/${encodeURIComponent(_currentMsgThread)}`, 'POST', { text });
+    openMsgThread(_currentMsgThread);
+}
+
+async function updateMsgUnreadBadge() {
+    const data = await api('/api/messages/unread-count');
+    const badge = document.getElementById('msgUnreadBadge');
+    if (!badge) return;
+    const count = data?.unread || 0;
+    badge.textContent = count;
+    badge.style.display = count > 0 ? '' : 'none';
+}
+
+// Polling badge toutes les 30s
+setInterval(updateMsgUnreadBadge, 30000);
+document.addEventListener('DOMContentLoaded', () => { updateMsgUnreadBadge(); });
 
 </script>
 
