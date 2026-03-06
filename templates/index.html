@@ -1642,19 +1642,14 @@
 <!-- ═══ Project Modal ═══ -->
 <div class="modal-overlay" id="projectModal">
     <div class="modal">
-        <h3 id="projectModalTitle">Nouvel Étudiant</h3>
+        <h3 id="projectModalTitle">Nouveau dossier / Projet</h3>
         <input type="hidden" id="projectEditId">
-        <label>Nom de l'étudiant</label>
-        <input type="text" id="projectEditName" placeholder="Ex: Adil Samatou">
-        <label>Parcours</label>
-        <select id="projectEditParcours" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);">
-            <option value="ASRC">ASRC (Admin Systèmes, Réseaux et Cybersécurité)</option>
-            <option value="ASRS">ASRS (Admin Systèmes, Réseaux et Sécurité)</option>
-            <option value="TI">TI (Technicien Informatique)</option>
-            <option value="Autre">Autre / Libre</option>
-        </select>
-        <label>Notes Mentor</label>
-        <textarea id="projectEditDesc" placeholder="Notes sur l'étudiant..." rows="3"></textarea>
+        <label>Nom du projet</label>
+        <input type="text" id="projectEditName" placeholder="Ex: Audit Client Avril">
+        <label>Catégorie / Dossier (Optionnel)</label>
+        <input type="text" id="projectEditParcours" placeholder="Ex: Clients, Outils..." style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);">
+        <label>Description / Contexte</label>
+        <textarea id="projectEditDesc" placeholder="Description du projet..." rows="3"></textarea>
         <label>Prompt spécifique (optionnel)</label>
         <select id="projectEditPrompt" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);"></select>
         <div class="modal-actions">
@@ -2508,7 +2503,7 @@ async function loadProjects() {
     renderProjects();
 }
 
-const _expandedParcours = new Set(['ASRC', 'ASRS', 'TI']); // Expand by default
+const _expandedParcours = new Set(); // Collapsed by default for a clean view
 
 function toggleParcours(parcours, headerEl) {
     const body = document.getElementById('parcours-body-' + parcours);
@@ -2536,7 +2531,7 @@ function renderProjects() {
     // Grouper par parcours
     const parcoursMap = {};
     sortedProjects.forEach(p => {
-        const parc = p.parcours || 'Sans Parcours';
+        const parc = p.parcours || 'Dossiers Racines';
         if (!parcoursMap[parc]) parcoursMap[parc] = [];
         parcoursMap[parc].push(p);
     });
@@ -2554,7 +2549,6 @@ function renderProjects() {
         </div>
     `;
 
-    // Toujours afficher ces 3 parcours s'ils ont des étudiants, ou les autres.
     Object.keys(parcoursMap).sort().forEach(parc => {
         const collapsed = !_expandedParcours.has(parc);
         html += `
@@ -2820,9 +2814,9 @@ async function saveProject() {
     const id = document.getElementById('projectEditId').value;
     const name = document.getElementById('projectEditName').value.trim();
     const description = document.getElementById('projectEditDesc').value.trim();
-    const parcours = document.getElementById('projectEditParcours').value || 'ASRC';
+    const parcours = document.getElementById('projectEditParcours').value || '';
     const default_prompt_id = document.getElementById('projectEditPrompt').value || null;
-    if (!name) { alert('Nom de l\'étudiant requis'); return; }
+    if (!name) { alert('Nom du projet requis'); return; }
 
     if (id) {
         await fetch(`/api/projects/${id}`, {
