@@ -1,7 +1,8 @@
 flask
 gunicorn
-boto3
+anthropic
+requests
 PyPDF2
 python-docx
 
-anthropic
+boto3==1.34.62
