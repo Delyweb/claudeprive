@@ -219,6 +219,9 @@ def call_claude(messages, system_prompt, model=None, username=None):
     if model is None:
         forced_model = get_user_forced_config(username)
         model = forced_model or user_settings.get("model", "claude-3-haiku-20240307")
+        
+    # Dynamically set max_tokens: Haiku only supports 4096, others support 8192
+    max_tokens_limit = 4096 if "haiku" in model.lower() else 8192
     
     # Force le vieux modèle EU de ClaudePrive qui passait l'authentification
     if provider == "bedrock":
@@ -232,7 +235,7 @@ def call_claude(messages, system_prompt, model=None, username=None):
     if provider == "bedrock":
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 8192,
+            "max_tokens": max_tokens_limit,
             "system": system_prompt,
             "messages": messages,
         })
@@ -252,7 +255,7 @@ def call_claude(messages, system_prompt, model=None, username=None):
         client = get_anthropic_client()
         resp = client.messages.create(
             model=model,
-            max_tokens=8192,
+            max_tokens=max_tokens_limit,
             system=system_prompt,
             messages=messages,
         )
