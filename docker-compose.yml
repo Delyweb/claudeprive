@@ -2,7 +2,7 @@ services:
   claudeprive:
     build: .
     ports:
-      - "8009:8009"
+      - "8008:8008"
     volumes:
       - claudeprive-data:/app/data
     environment:
