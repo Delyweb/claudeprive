@@ -1912,7 +1912,7 @@ def api_messages_unread_count():
 
 if __name__ == "__main__":
     print(app.url_map)
-    app.run(debug=True, port=8010)
+    app.run(debug=True, port=8008)
 else:
     print("Chargement de l'application MasterMentor...")
     print(app.url_map)
