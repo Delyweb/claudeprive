@@ -132,6 +132,10 @@
             gap: 12px;
             padding-bottom: 4px;
         }
+        .cost-item.active-provider {
+            box-shadow: 0 0 8px var(--accent);
+            border: 1px solid var(--accent);
+        }
         .cost-item {
             flex: 1;
             text-align: center;
@@ -1302,28 +1306,27 @@
     </div>
 
     <!-- Coûts -->
-    <div class="sidebar-section">
-        <div class="sidebar-section-title">Coûts</div>
-        <div class="costs-display">
-            <div class="cost-item">
-                <div class="cost-value" id="costToday">$0.00</div>
-                <div class="cost-label">Aujourd'hui</div>
+    <div class="sidebar-section" id="costsSection" style="display:none;">
+        <div class="sidebar-section-title" style="display: flex; justify-content: space-between;">
+            <span>Coûts Mensuels</span>
+            <span id="costTotal" style="font-weight: bold; color: var(--accent);">$0.00</span>
+        </div>
+        <div class="costs-display" style="gap: 4px;">
+            <div id="costBoxAnthropic" class="cost-item" style="background: var(--bg-tertiary); padding: 4px; border-radius: 6px;">
+                <div class="cost-value" id="costAnthropic" style="font-size: 0.8rem;">$0.00</div>
+                <div class="cost-label" style="font-size: 0.65rem;">Anthropic</div>
             </div>
-            <div class="cost-item">
-                <div class="cost-value" id="costMonth">$0.00</div>
-                <div class="cost-label">Ce mois</div>
-            </div>
-            <div class="cost-item">
-                <div class="cost-value" id="costTotal">$0.00</div>
-                <div class="cost-label">Total</div>
+            <div id="costBoxAws" class="cost-item" style="background: var(--bg-tertiary); padding: 4px; border-radius: 6px;">
+                <div class="cost-value" id="costAws" style="font-size: 0.8rem;">$0.00</div>
+                <div class="cost-label" style="font-size: 0.65rem;">AWS Bedrock</div>
             </div>
         </div>
     </div>
 
     <!-- Prompt actif -->
-    <div class="sidebar-section">
-        <div class="sidebar-section-title">{% if app_mode == 'student' %}Projet en cours{% else %}Prompt système{% endif %}</div>
-        <select class="prompt-select" id="promptSelect" onchange="changeActivePrompt()"></select>
+    <div class="sidebar-section" id="promptSection" style="display:none;">
+        <div class="sidebar-section-title">Prompt système</div>
+        <select class="prompt-select" id="promptSelect" onchange="changeActivePrompt()" style="height: 38px;"></select>
         <div class="prompt-actions">
             <button class="prompt-btn-sm" onclick="openPromptModal()">Modifier</button>
             <button class="prompt-btn-sm" onclick="openPromptModal(true)">+ Nouveau</button>
@@ -1333,8 +1336,8 @@
     <!-- Projets -->
     <div class="sidebar-section">
         <div class="sidebar-section-title" style="display:flex; justify-content:space-between; align-items:center;">
-            Projets
-            <button class="prompt-btn-sm" style="flex:none; padding:3px 8px;" onclick="openProjectModal(true)">+</button>
+            <span id="projectsTitleText">Dossiers Projets</span>
+            <button class="prompt-btn-sm" id="newProjectBtn" style="flex:none; padding:3px 8px; display:none;" onclick="openProjectModal(true)">+</button>
         </div>
         <!-- Drop target for moving conversations out of projects -->
         <div class="no-project-btn active" id="noProjectBtn" 
@@ -1342,9 +1345,9 @@
              ondragover="handleDragOver(event)" 
              ondragleave="handleDragLeave(event)" 
              ondrop="handleDrop(event, null)">
-             Hors projet
+             Toutes les conversations
         </div>
-        <div id="projectsList"></div>
+        <div id="projectsList" style="max-height: 45vh; overflow-y: auto;"></div>
     </div>
 
     <!-- Messagerie -->
@@ -1519,9 +1522,9 @@
                     <span class="cp-files-col-subtitle" id="cpFilesCount">0 fichier</span>
                     <span style="flex:1;"></span>
                     <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--accent);" onclick="createFolder()" title="Nouveau dossier">📁+</button>
-                    <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectModal()" title="Modifier le projet">✏️</button>
+                    <button class="prompt-btn-sm" id="cpEditProjectBtn" style="padding:4px 8px; display:none;" onclick="openProjectModal()" title="Modifier le projet">✏️</button>
                     <button class="prompt-btn-sm" style="padding:4px 8px;" onclick="openProjectPage()" title="Vue complète">⊞</button>
-                    <button class="prompt-btn-sm" style="padding:4px 8px;color:var(--danger);" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
+                    <button class="prompt-btn-sm" id="cpDeleteProjectBtn" style="padding:4px 8px;color:var(--danger); display:none;" onclick="deleteCurrentProject()" title="Supprimer le projet">🗑️</button>
                 </div>
             </div>
             <div style="padding:8px 8px 0;">
@@ -1560,8 +1563,8 @@
             <button class="prompt-btn-sm" id="ppJournalBtn" onclick="generateJournalPage(event)">Journal du jour</button>
             <button class="prompt-btn-sm" onclick="createFolder()" style="color:var(--accent);">📁+ Dossier</button>
             <button class="prompt-btn-sm" onclick="openNewFileModal()" style="color:var(--accent);">📝 Nouveau fichier</button>
-            <button class="prompt-btn-sm" onclick="openProjectModal()">Modifier</button>
-            <button class="prompt-btn-sm" style="color:var(--danger);" onclick="deleteCurrentProject()">Supprimer</button>
+            <button class="prompt-btn-sm" id="ppEditProjectBtn" style="display:none;" onclick="openProjectModal()">Modifier</button>
+            <button class="prompt-btn-sm" id="ppDeleteProjectBtn" style="color:var(--danger); display:none;" onclick="deleteCurrentProject()">Supprimer</button>
         </div>
     </div>
     <div class="project-page-body">
@@ -1598,25 +1601,19 @@
 <!-- ═══ Settings Modal ═══ -->
 <div class="modal-overlay" id="settingsModal">
     <div class="modal">
-        <h3>Réglages</h3>
-        <label>Modèle Claude (Europe - 2026)</label>
-        <select id="settingsModel">
-            <optgroup label="Claude Opus (Puissance Max)">
-                <option value="eu.anthropic.claude-opus-4-6-v1:0">Claude Opus 4.6 (Europe)</option>
-                <option value="eu.anthropic.claude-opus-4-5-20251101-v1:0">Claude Opus 4.5 (Europe - Stable)</option>
-            </optgroup>
-            <optgroup label="Claude Sonnet (Équilibré)">
-                <option value="eu.anthropic.claude-sonnet-4-5-20250929-v1:0">Claude Sonnet 4.5 (Europe)</option>
-            </optgroup>
-            <optgroup label="Claude Haiku (Rapide)">
-                <option value="eu.anthropic.claude-haiku-4-5-20251001-v1:0">Claude Haiku 4.5 (Europe)</option>
-            </optgroup>
+        <h3>Réglages Moteur IA</h3>
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Choisissez la puissance du modèle à utiliser pour l'Assistant Mentor.</p>
+        
+        <label>Mode de l'Assistant</label>
+        <select id="settingsProvider" style="padding: 12px; font-weight: bold;">
+            <option value="anthropic">Mode Éco (Anthropic Haiku - très rapide, très peu cher)</option>
+            <option value="bedrock">Mode Puissant (AWS Bedrock Sonnet 3.5 - intelligent, analytique)</option>
         </select>
-        <label>Région AWS</label>
-        <select id="settingsRegion">
-            <option value="eu-west-3">Europe (Paris) — eu-west-3</option>
-            <option value="eu-west-1">Europe (Irlande) — eu-west-1</option>
-        </select>
+        
+        <!-- Hidden legacy fields to keep backend compatibility if needed -->
+        <input type="hidden" id="settingsModel" value="">
+        <input type="hidden" id="settingsRegion" value="us-east-1">
+        
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeModal('settingsModal')">Annuler</button>
             <button class="modal-btn modal-btn-primary" onclick="saveSettings()">Sauvegarder</button>
@@ -1645,13 +1642,20 @@
 <!-- ═══ Project Modal ═══ -->
 <div class="modal-overlay" id="projectModal">
     <div class="modal">
-        <h3 id="projectModalTitle">Nouveau projet</h3>
+        <h3 id="projectModalTitle">Nouvel Étudiant</h3>
         <input type="hidden" id="projectEditId">
-        <label>Nom du projet</label>
-        <input type="text" id="projectEditName" placeholder="Ex: Contrats Horyus">
-        <label>Description</label>
-        <textarea id="projectEditDesc" placeholder="Décrivez le contexte du projet..." rows="4"></textarea>
-        <label>Prompt par défaut</label>
+        <label>Nom de l'étudiant</label>
+        <input type="text" id="projectEditName" placeholder="Ex: Adil Samatou">
+        <label>Parcours</label>
+        <select id="projectEditParcours" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);">
+            <option value="ASRC">ASRC (Admin Systèmes, Réseaux et Cybersécurité)</option>
+            <option value="ASRS">ASRS (Admin Systèmes, Réseaux et Sécurité)</option>
+            <option value="TI">TI (Technicien Informatique)</option>
+            <option value="Autre">Autre / Libre</option>
+        </select>
+        <label>Notes Mentor</label>
+        <textarea id="projectEditDesc" placeholder="Notes sur l'étudiant..." rows="3"></textarea>
+        <label>Prompt spécifique (optionnel)</label>
         <select id="projectEditPrompt" style="width:100%;padding:8px;border-radius:6px;background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);"></select>
         <div class="modal-actions">
             <button class="modal-btn modal-btn-cancel" onclick="closeModal('projectModal')">Annuler</button>
@@ -1820,6 +1824,7 @@ let attachedImage = null; // { base64, mediaType, dataUrl }
 let projects = [];
 let currentProjectId = null;
 let currentUser = null; // { username, role }
+let currentDashboardMode = 'mentor';
 
 // ═══════════════════════════════════════
 // Init
@@ -1860,6 +1865,24 @@ async function loadMe() {
     }
 }
 
+function updateDashboardUI() {
+    document.getElementById('costsSection').style.display = 'block';
+    document.getElementById('promptSection').style.display = 'block';
+    document.getElementById('projectsTitleText').textContent = 'Dossiers / Projets';
+    document.getElementById('newProjectBtn').style.display = 'block';
+    document.getElementById('noProjectBtn').textContent = 'Hors parcours';
+    
+    // Show project edit/delete buttons
+    document.getElementById('ppEditProjectBtn').style.display = 'inline-block';
+    document.getElementById('ppDeleteProjectBtn').style.display = 'inline-block';
+    
+    document.getElementById('cpEditProjectBtn').style.display = 'inline-block';
+    document.getElementById('cpDeleteProjectBtn').style.display = 'inline-block';
+    
+    renderProjects();
+    renderConversations();
+}
+
 async function logout() {
     await fetch('/logout', { method: 'POST' });
     window.location.href = '/login';
@@ -1898,15 +1921,11 @@ async function refreshAdminUsers() {
     document.getElementById('adminTotalUsers').textContent = (data.users || []).length;
 
     const MODEL_LABELS = {
-        'eu.anthropic.claude-opus-4-6-v1': 'Opus 4.6 EU',
-        'anthropic.claude-opus-4-6-v1': 'Opus 4.6',
-        'eu.anthropic.claude-opus-4-5-20251101-v1:0': 'Opus 4.5 EU',
-        'anthropic.claude-opus-4-5-20251101-v1:0': 'Opus 4.5',
-        'eu.anthropic.claude-sonnet-4-5-20250929-v1:0': 'Sonnet 4.5 EU',
-        'anthropic.claude-sonnet-4-5-20250929-v1:0': 'Sonnet 4.5',
-        'eu.anthropic.claude-haiku-4-5-20251001-v1:0': 'Haiku 4.5 EU',
-        'anthropic.claude-haiku-4-5-20251001-v1:0': 'Haiku 4.5',
-        'us.anthropic.claude-3-5-sonnet-20241022-v2:0': 'Sonnet 3.5 US',
+        'claude-3-7-sonnet-20250219': 'Sonnet 3.7',
+        'claude-3-5-sonnet-20241022': 'Sonnet 3.5',
+        'claude-3-5-haiku-20241022': 'Haiku 3.5',
+        'claude-3-opus-20240229': 'Opus 3',
+        'claude-3-haiku-20240307': 'Haiku 3'
     };
 
     const modelOpts = `<option value="">(choix utilisateur)</option>` +
@@ -1930,9 +1949,7 @@ async function refreshAdminUsers() {
                     ${modelOpts.replace(`value="${u.forced_model}"`, `value="${u.forced_model}" selected`)}
                 </select>
                 <select onchange="adminUpdateUser('${u.username}','forced_region',this.value)" style="${adminSelectStyle()}">
-                    <option value="" ${!u.forced_region?'selected':''}>(région utilisateur)</option>
-                    <option value="eu-west-3" ${u.forced_region==='eu-west-3'?'selected':''}>EU Paris</option>
-                    <option value="us-east-1" ${u.forced_region==='us-east-1'?'selected':''}>US East</option>
+                    <option value="us-east-1" selected>US East</option>
                 </select>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.82rem;color:var(--text-secondary);white-space:nowrap;">
                     <input type="checkbox" ${u.pegasus_enabled?'checked':''} onchange="adminUpdateUser('${u.username}','pegasus_enabled',this.checked)" style="accent-color:var(--accent);width:15px;height:15px;">
@@ -2117,6 +2134,13 @@ async function deleteConversation(id) {
 // ═══════════════════════════════════════
 function showContextMenu(e, id) {
     e.stopPropagation();
+    
+    // Check if locked
+    const conv = conversations.find(c => c.id === id);
+    if (conv && conv.is_locked) {
+        return; // No context menu for locked conversations
+    }
+    
     contextConvId = id;
     const menu = document.getElementById('contextMenu');
     
@@ -2401,9 +2425,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════════════════
 async function loadCosts() {
     const data = await api('/api/costs');
-    document.getElementById('costToday').textContent = formatCostDisplay(data.today?.cost_usd || 0);
-    document.getElementById('costMonth').textContent = formatCostDisplay(data.month?.cost_usd || 0);
-    document.getElementById('costTotal').textContent = formatCostDisplay(data.total?.cost_usd || 0);
+    document.getElementById('costAnthropic').textContent = formatCostDisplay(data.month?.anthropic_usd || 0);
+    document.getElementById('costAws').textContent = formatCostDisplay(data.month?.aws_usd || 0);
+    document.getElementById('costTotal').textContent = formatCostDisplay(data.month?.cost_usd || 0);
 }
 
 function formatCostDisplay(usd) {
@@ -2484,19 +2508,66 @@ async function loadProjects() {
     renderProjects();
 }
 
+const _expandedParcours = new Set(['ASRC', 'ASRS', 'TI']); // Expand by default
+
+function toggleParcours(parcours, headerEl) {
+    const body = document.getElementById('parcours-body-' + parcours);
+    if (!body) return;
+    if (_expandedParcours.has(parcours)) {
+        _expandedParcours.delete(parcours);
+        body.style.display = 'none';
+        headerEl.classList.add('collapsed');
+    } else {
+        _expandedParcours.add(parcours);
+        body.style.display = '';
+        headerEl.classList.remove('collapsed');
+    }
+}
+
 function renderProjects() {
     const list = document.getElementById('projectsList');
-    list.innerHTML = projects.map(p => `
+    
+    let filteredProjects = projects.filter(p => !p.id.match(/^p\d+$/));
+    
+    const sortedProjects = [...filteredProjects].sort((a, b) => {
+        return a.name.localeCompare(b.name);
+    });
+
+    // Grouper par parcours
+    const parcoursMap = {};
+    sortedProjects.forEach(p => {
+        const parc = p.parcours || 'Sans Parcours';
+        if (!parcoursMap[parc]) parcoursMap[parc] = [];
+        parcoursMap[parc].push(p);
+    });
+
+    let html = '';
+    
+    const renderProj = p => `
         <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" 
              onclick="selectProject('${p.id}')"
              ondragover="handleDragOver(event)" 
              ondragleave="handleDragLeave(event)" 
              ondrop="handleDrop(event, '${p.id}')">
-            <span class="project-name">${escapeHtml(p.name)}</span>
-            <span class="project-badge">${(p.files || []).length} fichier${(p.files || []).length !== 1 ? 's' : ''}</span>
+            <span class="project-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span>
+            <span class="project-badge">${(p.files || []).length}</span>
         </div>
-    `).join('');
+    `;
 
+    // Toujours afficher ces 3 parcours s'ils ont des étudiants, ou les autres.
+    Object.keys(parcoursMap).sort().forEach(parc => {
+        const collapsed = !_expandedParcours.has(parc);
+        html += `
+        <div class="folder-header${collapsed ? ' collapsed' : ''}" onclick="toggleParcours('${parc}', this)" style="padding-top: 12px; font-size: 0.75rem;">
+            📁 ${escapeHtml(parc)} <span style="color:var(--text-muted); font-size:0.65rem; margin-left:4px;">(${parcoursMap[parc].length})</span>
+            <span class="folder-chevron">▼</span>
+        </div>
+        <div id="parcours-body-${parc}" style="${collapsed ? 'display:none' : ''}">
+            ${parcoursMap[parc].map(renderProj).join('')}
+        </div>`;
+    });
+
+    list.innerHTML = html;
     document.getElementById('noProjectBtn').classList.toggle('active', !currentProjectId);
 }
 
@@ -2727,15 +2798,16 @@ function openProjectModal(isNew = false) {
         prompts.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
 
     if (isNew) {
-        document.getElementById('projectModalTitle').textContent = 'Nouveau projet';
+        document.getElementById('projectModalTitle').textContent = 'Nouvel étudiant / Nouveau parcours';
         document.getElementById('projectEditId').value = '';
         document.getElementById('projectEditName').value = '';
+        document.getElementById('projectEditName').placeholder = 'Ex: Ljorik Ameti';
         document.getElementById('projectEditDesc').value = '';
         sel.value = '';
     } else {
         const proj = projects.find(p => p.id === currentProjectId);
         if (!proj) return;
-        document.getElementById('projectModalTitle').textContent = 'Modifier le projet';
+        document.getElementById('projectModalTitle').textContent = 'Modifier';
         document.getElementById('projectEditId').value = proj.id;
         document.getElementById('projectEditName').value = proj.name;
         document.getElementById('projectEditDesc').value = proj.description || '';
@@ -2748,17 +2820,18 @@ async function saveProject() {
     const id = document.getElementById('projectEditId').value;
     const name = document.getElementById('projectEditName').value.trim();
     const description = document.getElementById('projectEditDesc').value.trim();
+    const parcours = document.getElementById('projectEditParcours').value || 'ASRC';
     const default_prompt_id = document.getElementById('projectEditPrompt').value || null;
-    if (!name) { alert('Nom du projet requis'); return; }
+    if (!name) { alert('Nom de l\'étudiant requis'); return; }
 
     if (id) {
         await fetch(`/api/projects/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description, default_prompt_id })
+            body: JSON.stringify({ name, description, parcours, default_prompt_id })
         });
     } else {
-        const data = await api('/api/projects', 'POST', { name, description, default_prompt_id });
+        const data = await api('/api/projects', 'POST', { name, description, parcours, default_prompt_id });
         currentProjectId = data.id;
     }
 
@@ -3327,34 +3400,42 @@ function cpFilesHandleDrop(e) {
 // ═══════════════════════════════════════
 async function loadSettings() {
     settings = await api('/api/settings');
-    document.getElementById('settingsModel').value = settings.model || 'eu.anthropic.claude-sonnet-4-5-20250929-v1:0';
-    document.getElementById('settingsRegion').value = settings.region || 'eu-west-3';
+    document.getElementById('settingsModel').value = settings.model || 'claude-3-haiku-20240307';
+    document.getElementById('settingsProvider').value = settings.provider || 'anthropic';
+    document.getElementById('settingsRegion').value = settings.region || 'us-east-1';
+    currentDashboardMode = settings.dashboard_mode || 'student';
     updateModelBadge();
+    updateDashboardUI();
 }
 
 function updateModelBadge() {
-    const m = settings.model || '';
-    let label = 'Claude';
-    if (m.includes('sonnet')) label = 'Sonnet 4.5';
-    else if (m.includes('haiku')) label = 'Haiku 4.5';
-    else if (m.includes('opus')) label = 'Opus 4.6';
-    
-    if (m.startsWith('eu.')) label += ' (EU)';
-    else if (m.startsWith('us.')) label += ' (US)';
-    
+    const p = settings.provider || 'anthropic';
+    let label = p === 'bedrock' ? 'AWS Sonnet 3.5' : 'Anthropic Haiku';
     document.getElementById('chatModel').textContent = label;
+    
+    // Halo sur le compteur actif
+    const boxAn = document.getElementById('costBoxAnthropic');
+    const boxAws = document.getElementById('costBoxAws');
+    if (boxAn && boxAws) {
+        if (p === 'bedrock') {
+            boxAws.classList.add('active-provider');
+            boxAn.classList.remove('active-provider');
+        } else {
+            boxAn.classList.add('active-provider');
+            boxAws.classList.remove('active-provider');
+        }
+    }
 }
 
 function openSettingsModal() {
-    document.getElementById('settingsModel').value = settings.model;
-    document.getElementById('settingsRegion').value = settings.region;
+    document.getElementById('settingsProvider').value = settings.provider || 'anthropic';
     openModal('settingsModal');
 }
 
 async function saveSettings() {
-    const model = document.getElementById('settingsModel').value;
-    const region = document.getElementById('settingsRegion').value;
-    settings = await api('/api/settings', 'POST', { model, region });
+    const provider = document.getElementById('settingsProvider').value;
+    const model = provider === 'bedrock' ? 'us.anthropic.claude-3-5-sonnet-20241022-v2:0' : 'claude-3-haiku-20240307';
+    settings = await api('/api/settings', 'POST', { provider, model, region: 'us-east-1' });
     updateModelBadge();
     closeModal('settingsModal');
 }
@@ -3422,10 +3503,30 @@ function formatMessage(text) {
     function renderArtifact(lang, code) {
         const rawCode = code.trimEnd();
         const safeLang = escapeHtml(lang || 'texte');
-        const safeCode = escapeHtml(rawCode);
         const ext = extMap[(lang||'').toLowerCase()] || (lang ? lang.toLowerCase() : 'txt');
         const b64 = btoa(unescape(encodeURIComponent(rawCode)));
-        return `<div class="artifact-block"><div class="artifact-header"><span class="artifact-lang">${safeLang}</span><button class="artifact-save-btn" onclick="copyArtifactInline(this)" data-code="${b64}" title="Copier">📋 Copier</button><button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}">Ouvrir →</button></div><div class="artifact-body"><pre><code>${safeCode}</code></pre></div></div>`;
+        
+        let title = "Code Snippet";
+        let icon = "💻";
+        
+        if (lang === 'html' || lang === 'markdown') {
+            title = "Document Interactif";
+            icon = "📄";
+        }
+        
+        // Nouvelle mise en page d'artefact sans afficher le code brut
+        return `
+        <div style="margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-tertiary); display: flex; align-items: center; padding: 12px 16px; gap: 16px;">
+            <div style="font-size: 2rem; opacity: 0.8;">${icon}</div>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem; margin-bottom: 4px;">${title}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">${safeLang}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="artifact-save-btn" onclick="copyArtifactInline(this)" data-code="${b64}" title="Copier">Copier</button>
+                <button class="artifact-save-btn" onclick="openArtifactPanel(this)" data-lang="${safeLang}" data-ext="${ext}" data-code="${b64}" style="background: var(--accent); color: var(--bg-primary); border-color: var(--accent);">Ouvrir l'Aperçu →</button>
+            </div>
+        </div>`;
     }
 
     const codeBlockRegex = /```([\w.+-]*)\n([\s\S]*?)```/g;
